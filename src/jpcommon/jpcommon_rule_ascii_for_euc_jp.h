@@ -70,6 +70,19 @@ static const char *jpcommon_unvoice_list[] = {
 };
 
 static const char *jpcommon_mora_list[] = {
+   "\xa5\xaf\xa5\xa1", "kw", "a",
+   "\xa5\xaf\xa5\xa3", "kw", "i",
+   "\xa5\xaf\xa5\xa5", "kw", "u",
+   "\xa5\xaf\xa5\xa7", "kw", "e",
+   "\xa5\xaf\xa5\xa9", "kw", "o",
+   "\xa5\xb0\xa5\xa1", "gw", "a",
+   "\xa5\xb0\xa5\xa3", "gw", "i",
+   "\xa5\xb0\xa5\xa5", "gw", "u",
+   "\xa5\xb0\xa5\xa7", "gw", "e",
+   "\xa5\xb0\xa5\xa9", "gw", "o",
+   "\xa5\xb7\xa5\xa3", "s", "i",
+   "\xa5\xc7\xa5\xa7", "dy", "e",
+   "\xa5\xd5\xa5\xe5", "fy", "u",
    "\xa5\xf4\xa5\xe7", "by", "o",
    "\xa5\xf4\xa5\xe5", "by", "u",
    "\xa5\xf4\xa5\xe3", "by", "a",

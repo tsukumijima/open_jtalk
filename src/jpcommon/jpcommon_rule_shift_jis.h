@@ -70,6 +70,19 @@ static const char *jpcommon_unvoice_list[] = {
 };
 
 static const char *jpcommon_mora_list[] = {
+   "クァ", "kw", "a",
+   "クィ", "kw", "i",
+   "クゥ", "kw", "u",
+   "クェ", "kw", "e",
+   "クォ", "kw", "o",
+   "グァ", "gw", "a",
+   "グィ", "gw", "i",
+   "グゥ", "gw", "u",
+   "グェ", "gw", "e",
+   "グォ", "gw", "o",
+   "デェ", "dy", "e",
+   "シィ", "s", "i",
+   "フュ", "fy", "u",
    "ヴョ", "by", "o",
    "ヴュ", "by", "u",
    "ヴャ", "by", "a",

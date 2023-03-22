@@ -77,6 +77,7 @@ NJD_SET_UNVOICED_VOWEL_RULE_H_START;
 #define NJD_SET_UNVOICED_VOWEL_SU "\xa5\xb9"
 
 static const char *njd_set_unvoiced_vowel_candidate_list1[] = {
+   "\xa5\xb7\xa5\xa3",                    /* s i */
    "\xa5\xb9\xa5\xa3",                    /* s i */
    "\xa5\xb9",                       /* s u */
    NULL
@@ -187,6 +188,19 @@ static const char *njd_set_unvoiced_vowel_next_mora_list3[] = {
 };
 
 static const char *njd_set_unvoiced_vowel_mora_list[] = {
+   "\xa5\xaf\xa5\xa1",
+   "\xa5\xaf\xa5\xa3",
+   "\xa5\xaf\xa5\xa5",
+   "\xa5\xaf\xa5\xa7",
+   "\xa5\xaf\xa5\xa9",
+   "\xa5\xb0\xa5\xa1",
+   "\xa5\xb0\xa5\xa3",
+   "\xa5\xb0\xa5\xa5",
+   "\xa5\xb0\xa5\xa7",
+   "\xa5\xb0\xa5\xa9",
+   "\xa5\xb7\xa5\xa3",
+   "\xa5\xc7\xa5\xa7",
+   "\xa5\xd5\xa5\xe5",
    "\xa5\xf4\xa5\xe7",
    "\xa5\xf4\xa5\xe5",
    "\xa5\xf4\xa5\xe3",

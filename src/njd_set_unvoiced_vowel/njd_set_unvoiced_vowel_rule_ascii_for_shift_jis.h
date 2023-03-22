@@ -77,6 +77,7 @@ NJD_SET_UNVOICED_VOWEL_RULE_H_START;
 #define NJD_SET_UNVOICED_VOWEL_SU "\x83\x58"
 
 static const char *njd_set_unvoiced_vowel_candidate_list1[] = {
+   "\x83\x56\x83\x42",                    /* s i */
    "\x83\x58\x83\x42",                    /* s i */
    "\x83\x58",                       /* s u */
    NULL
@@ -187,6 +188,19 @@ static const char *njd_set_unvoiced_vowel_next_mora_list3[] = {
 };
 
 static const char *njd_set_unvoiced_vowel_mora_list[] = {
+   "\x83\x4e\x83\x40",
+   "\x83\x4e\x83\x42",
+   "\x83\x4e\x83\x44",
+   "\x83\x4e\x83\x46",
+   "\x83\x4e\x83\x48",
+   "\x83\x4f\x83\x40",
+   "\x83\x4f\x83\x42",
+   "\x83\x4f\x83\x44",
+   "\x83\x4f\x83\x46",
+   "\x83\x4f\x83\x48",
+   "\x83\x56\x83\x42",
+   "\x83\x66\x83\x46",
+   "\x83\x74\x83\x85",
    "\x83\x94\x83\x87",
    "\x83\x94\x83\x85",
    "\x83\x94\x83\x83",
