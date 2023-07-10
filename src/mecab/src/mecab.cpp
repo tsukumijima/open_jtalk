@@ -76,8 +76,27 @@ BOOL Mecab_initialize(Mecab *m)
 
 BOOL Mecab_load(Mecab *m, const char *dicdir)
 {
+   return Mecab_load_with_userdic(m, dicdir, NULL);
+}
+
+void Mecab_print_load_error(const char *dicdir, const char *userdic) {
+   if (userdic == NULL) {
+      fprintf(stderr, "ERROR: Mecab_load() in mecab.cpp: Cannot open %s.\n", dicdir);
+   } else {
+      fprintf(stderr, "ERROR: Mecab_load_with_userdic() in mecab.cpp: Cannot open %s or %s.\n", dicdir, userdic);
+   }
+}
+
+
+BOOL Mecab_load_with_userdic(Mecab *m, const char *dicdir, const char *userdic)
+{
    int i;
-   int argc = 3;
+   int argc;
+   if (userdic == NULL) {
+      argc = 3;
+   } else {
+      argc = 5;
+   }
    char **argv;
 
    if(m == NULL)
@@ -94,6 +113,11 @@ BOOL Mecab_load(Mecab *m, const char *dicdir)
    argv[1] = strdup("-d");
    argv[2] = strdup(dicdir);
 
+   if (userdic != NULL) {
+      argv[3] = strdup("-u");
+      argv[4] = strdup(userdic);
+   }
+
    MeCab::Model *model = MeCab::createModel(argc, argv);
 
    for(i = 0; i < argc; i++)
@@ -101,14 +125,14 @@ BOOL Mecab_load(Mecab *m, const char *dicdir)
    free(argv);
 
    if(model == NULL) {
-      fprintf(stderr, "ERROR: Mecab_load() in mecab.cpp: Cannot open %s.\n", dicdir);
+      Mecab_print_load_error(dicdir, userdic);
       return FALSE;
    }
 
    MeCab::Tagger *tagger = model->createTagger();
    if(tagger == NULL) {
       delete model;
-      fprintf(stderr, "ERROR: Mecab_load() in mecab.cpp: Cannot open %s.\n", dicdir);
+      Mecab_print_load_error(dicdir, userdic);
       return FALSE;
    }
 
@@ -116,7 +140,7 @@ BOOL Mecab_load(Mecab *m, const char *dicdir)
    if(lattice == NULL) {
       delete model;
       delete tagger;
-      fprintf(stderr, "ERROR: Mecab_load() in mecab.cpp: Cannot open %s.\n", dicdir);
+      Mecab_print_load_error(dicdir, userdic);
       return FALSE;
    }
 
