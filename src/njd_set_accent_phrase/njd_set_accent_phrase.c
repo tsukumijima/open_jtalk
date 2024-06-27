@@ -116,11 +116,13 @@ void njd_set_accent_phrase(NJD * njd)
                NJDNode_set_chain_flag(node, 0);
 
          /* Rule 04 */
+         /*
          if (strcmp(NJDNode_get_pos(node->prev), NJD_SET_ACCENT_PHRASE_MEISHI) == 0)
             if (strcmp
                 (NJDNode_get_pos_group1(node->prev), NJD_SET_ACCENT_PHRASE_KEIYOUDOUSHI_GOKAN) == 0)
                if (strcmp(NJDNode_get_pos(node), NJD_SET_ACCENT_PHRASE_MEISHI) == 0)
                   NJDNode_set_chain_flag(node, 0);
+         */
 
          /* Rule 05 */
          if (strcmp(NJDNode_get_pos(node->prev), NJD_SET_ACCENT_PHRASE_DOUSHI) == 0) {
