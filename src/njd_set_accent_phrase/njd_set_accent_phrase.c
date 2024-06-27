@@ -237,6 +237,12 @@ void njd_set_accent_phrase(NJD * njd)
          /* Rule 18 */
          if (strcmp(NJDNode_get_pos_group1(node), NJD_SET_ACCENT_PHRASE_SETSUBI) == 0)
             NJDNode_set_chain_flag(node, 1);
+
+         /* Rule 19 */
+         if (strcmp(NJDNode_get_pos(node), NJD_SET_ACCENT_PHRASE_MEISHI) == 0 && strcmp(NJDNode_get_pos_group1(node), NJD_SET_ACCENT_PHRASE_HIJIRITSU) == 0) {
+               if (strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_ACCENT_PHRASE_JIRITSU) == 0 || strcmp(NJDNode_get_pos(node->prev), NJD_SET_ACCENT_PHRASE_JODOUSHI) == 0) 
+                     NJDNode_set_chain_flag(node, 1);
+               }
       }
    }
 }

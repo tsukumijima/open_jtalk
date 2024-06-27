@@ -55,7 +55,7 @@ NJD_SET_ACCENT_PHRASE_RULE_H_START;
   Rule 01 デフォルトはくっつける
   Rule 02 「名詞」の連続はくっつける
   Rule 03 「形容詞」の後に「名詞」がきたら別のアクセント句に
-  Rule 04 「名詞,形容動詞語幹」の後に「名詞」がきたら別のアクセント句に
+  Rule 04 「名詞,形容動詞語幹」の後に「名詞」がきたら別のアクセント句に←無効化
   Rule 05 「動詞」の後に「形容詞」or「名詞」がきたら別のアクセント句に
   Rule 06 「副詞」，「接続詞」，「連体詞」は単独のアクセント句に
   Rule 07 「名詞,副詞可能」（すべて，など）は単独のアクセント句に
@@ -70,6 +70,8 @@ NJD_SET_ACCENT_PHRASE_RULE_H_START;
   Rule 16 「*,*,*,姓」の後の「名詞」は別のアクセント句に
   Rule 17 「名詞」の後の「*,*,*,名」は別のアクセント句に
   Rule 18 「*,接尾」は前にくっつける
+  Rule 19 「名詞,非自立」は「*,自立」or「助動詞,体言接続」に接続する場合に前にくっつける
+
 */
 
 #define NJD_SET_ACCENT_PHRASE_MEISHI "名詞"
@@ -84,6 +86,7 @@ NJD_SET_ACCENT_PHRASE_RULE_H_START;
 #define NJD_SET_ACCENT_PHRASE_KEIYOUDOUSHI_GOKAN "形容動詞語幹"
 #define NJD_SET_ACCENT_PHRASE_FUKUSHI_KANOU "副詞可能"
 #define NJD_SET_ACCENT_PHRASE_SETSUBI "接尾"
+#define NJD_SET_ACCENT_PHRASE_JIRITSU "自立"
 #define NJD_SET_ACCENT_PHRASE_HIJIRITSU "非自立"
 #define NJD_SET_ACCENT_PHRASE_RENYOU "連用"
 #define NJD_SET_ACCENT_PHRASE_SETSUZOKUJOSHI "接続助詞"
