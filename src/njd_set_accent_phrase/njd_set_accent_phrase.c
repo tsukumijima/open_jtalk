@@ -204,6 +204,8 @@ void njd_set_accent_phrase(NJD * njd)
                       (NJDNode_get_pos_group1(node->prev),
                        NJD_SET_ACCENT_PHRASE_SAHEN_SETSUZOKU) == 0)
                      NJDNode_set_chain_flag(node, 1);
+               } else if (strcmp(NJDNode_get_pos(node->prev), NJD_SET_ACCENT_PHRASE_JOSHI) == 0) {                  
+                  NJDNode_set_chain_flag(node, 1);
                }
             }
 
