@@ -246,6 +246,10 @@ void njd_set_accent_phrase(NJD * njd)
                   || strcmp(NJDNode_get_pos(node->prev), NJD_SET_ACCENT_PHRASE_RENTAISHI) == 0 ) 
                      NJDNode_set_chain_flag(node, 1);
                }
+         /* Rule 20 */
+         if (strcmp(NJDNode_get_pos_group1(node), NJD_SET_ACCENT_PHRASE_KOYUU_MEISHI) == 0)
+            NJDNode_set_chain_flag(node, 0);
+
       }
    }
 }

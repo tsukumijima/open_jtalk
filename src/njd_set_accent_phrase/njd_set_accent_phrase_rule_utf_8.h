@@ -71,6 +71,7 @@ NJD_SET_ACCENT_PHRASE_RULE_H_START;
   Rule 17 「名詞」の後の「*,*,*,名」は別のアクセント句に
   Rule 18 「*,接尾」は前にくっつける
   Rule 19 「名詞,非自立」は「*,自立」or「助動詞,体言接続」or 「連体詞」に接続する場合に前にくっつける
+  Rule 20 「固有名詞」は前とくっつけない
 
 */
 
@@ -83,6 +84,7 @@ NJD_SET_ACCENT_PHRASE_RULE_H_START;
 #define NJD_SET_ACCENT_PHRASE_JODOUSHI "助動詞"
 #define NJD_SET_ACCENT_PHRASE_JOSHI "助詞"
 #define NJD_SET_ACCENT_PHRASE_KIGOU "記号"
+#define NJD_SET_ACCENT_PHRASE_KOYUU_MEISHI "固有名詞"
 #define NJD_SET_ACCENT_PHRASE_KEIYOUDOUSHI_GOKAN "形容動詞語幹"
 #define NJD_SET_ACCENT_PHRASE_FUKUSHI_KANOU "副詞可能"
 #define NJD_SET_ACCENT_PHRASE_SETSUBI "接尾"
