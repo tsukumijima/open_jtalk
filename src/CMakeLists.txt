@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 2.6)
 
 # set library version
 set(OPEN_JTALK_VERSION 1.11)
+set(CMAKE_CXX_STANDARD 14)
 set(PACKAGE "open_jtalk")
 set(PACKAGE_BUGREPORT "https://github.com/r9y9/open_jtalk/")
 set(PACKAGE_NAME "open_jtalk")
@@ -105,7 +106,7 @@ if(HTS_ENGINE_INCLUDE_DIR AND HTS_ENGINE_LIB)
   target_link_libraries(openjtalk ${HTS_ENGINE_LIB})
   include_directories(openjtalk ${HTS_ENGINE_INCLUDE_DIR})
 else()
-  message(FATAL_ERROR "Required HTSEngine not found")
+  message("Required HTSEngine not found")
 endif()
 
 # configuration for charset

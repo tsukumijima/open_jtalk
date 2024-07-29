@@ -320,7 +320,8 @@ bool Dictionary::compile(const Param &param,
       }
     }
 
-    std::cout << "reading " << dics[i] << " ... ";
+    if (!MeCab::quiet_mode)
+      std::cout << "reading " << dics[i] << " ... ";
 
     scoped_fixed_array<char, BUF_SIZE> line;
     size_t num = 0;
@@ -456,7 +457,8 @@ bool Dictionary::compile(const Param &param,
       ++lexsize;
     }
 
-    std::cout << num << std::endl;
+    if (!MeCab::quiet_mode)
+      std::cout << num << std::endl;
   }
 
   if (wakati) {

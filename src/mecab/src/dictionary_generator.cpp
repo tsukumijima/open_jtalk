@@ -47,7 +47,8 @@ class DictionaryGenerator {
     std::ifstream ifs(WPATH(filename));
     CHECK_DIE(ifs) << "no such file or directory: " << filename;
     scoped_fixed_array<char, BUF_SIZE> line;
-    std::cout << "reading " << filename << " ... " << std::flush;
+    if (!MeCab::quiet_mode)
+      std::cout << "reading " << filename << " ... " << std::flush;
     size_t num = 0;
     std::string feature, ufeature, lfeature, rfeature;
     char *col[8];
@@ -252,9 +253,10 @@ class DictionaryGenerator {
       gencid(it->c_str(), &rewrite, &cid);
     }
 
-    std::cout << "emitting "
-              << OCONF(LEFT_ID_FILE) << "/ "
-              << OCONF(RIGHT_ID_FILE) << std::endl;
+    if (!MeCab::quiet_mode)
+      std::cout << "emitting "
+                << OCONF(LEFT_ID_FILE) << "/ "
+                << OCONF(RIGHT_ID_FILE) << std::endl;
 
     cid.build();
     cid.save(OCONF(LEFT_ID_FILE), OCONF(RIGHT_ID_FILE));
