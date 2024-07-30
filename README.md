@@ -2,7 +2,7 @@
 
 [![C/C++ CI](https://github.com/tsukumijima/open_jtalk/actions/workflows/ccpp.yaml/badge.svg)](https://github.com/tsukumijima/open_jtalk/actions/workflows/ccpp.yaml)
 
-A fork of OpenJTalk based on v1.11 for [pyopenjtalk-plus](https://github.com/tsukumijima/pyopenjtalk-plus).
+A fork of OpenJTalk based on v1.11 (for [pyopenjtalk-plus](https://github.com/tsukumijima/pyopenjtalk-plus)).
 
 ## Why
 
