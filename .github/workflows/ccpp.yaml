@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: r9y9/hts_engine_API
+          repository: syoyo/hts_engine_API
           path: hts_engine_API
       - name: Build hts_engine_API
         working-directory: ./hts_engine_API/src

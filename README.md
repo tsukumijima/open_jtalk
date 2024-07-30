@@ -1,8 +1,8 @@
-# bnken_open_jtalk
+# OpenJTalk
 
-[![C/C++ CI](https://github.com/r9y9/open_jtalk/actions/workflows/ccpp.yaml/badge.svg)](https://github.com/r9y9/open_jtalk/actions/workflows/ccpp.yaml)
+[![C/C++ CI](https://github.com/tsukumijima/open_jtalk/actions/workflows/ccpp.yaml/badge.svg)](https://github.com/tsukumijima/open_jtalk/actions/workflows/ccpp.yaml)
 
-A fork of open_jtalk based on v1.10.
+A fork of OpenJTalk based on v1.11 for [pyopenjtalk-plus](https://github.com/tsukumijima/pyopenjtalk-plus).
 
 ## Why
 
