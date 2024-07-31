@@ -255,10 +255,15 @@ void njd_set_accent_phrase(NJD * njd)
 
          /* Rule 21 */
          if (strcmp(NJDNode_get_pos(node->prev), NJD_SET_ACCENT_PHRASE_MEISHI) == 0
-             && strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_ACCENT_PHRASE_HIJIRITSU) == 0
+             && (strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_ACCENT_PHRASE_HIJIRITSU) == 0 ||strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_ACCENT_PHRASE_DAIMEISHI) == 0) 
              && strcmp(NJDNode_get_pos(node), NJD_SET_ACCENT_PHRASE_MEISHI) == 0)
             NJDNode_set_chain_flag(node, 0);
-
+         
+         /* Rule 22 */
+         if (strcmp(NJDNode_get_pos(node->prev), NJD_SET_ACCENT_PHRASE_KANDOUSHI) == 0)
+            NJDNode_set_chain_flag(node, 0);
+         if (strcmp(NJDNode_get_pos(node), NJD_SET_ACCENT_PHRASE_KANDOUSHI) == 0)
+            NJDNode_set_chain_flag(node, 0);
       }
    }
 }
