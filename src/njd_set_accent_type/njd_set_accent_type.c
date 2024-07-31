@@ -142,6 +142,8 @@ void njd_set_accent_type(NJD * njd)
    char rule[MAXBUFLEN];
    int add_type = 0;
    int mora_size = 0;
+   int top_acc = 0;
+   int top_mora_size = 0;
 
    if (njd == NULL || njd->head == NULL)
       return;
@@ -153,12 +155,20 @@ void njd_set_accent_type(NJD * njd)
          /* store the top node */
          top_node = node;
          mora_size = 0;
+         top_acc = NJDNode_get_acc(node);
+         top_mora_size = NJDNode_get_mora_size(node);
+         printf("%d",top_acc);
+         printf("%d",top_mora_size);
+
       } else if (node->prev != NULL && NJDNode_get_chain_flag(node) == 1) {
          /* get accent change type */
          get_rule(NJDNode_get_chain_rule(node), NJDNode_get_pos(node->prev), rule, &add_type);
 
          /* change accent type */
-         if (strcmp(rule, "*") == 0) {  /* no chnage */
+         if (strcmp(NJDNode_get_chain_rule(top_node), "P2") == 0) {
+            if (top_acc != 0 && top_mora_size > top_acc)
+               NJDNode_set_acc(top_node, top_acc);
+         } else if (strcmp(rule, "*") == 0) {  /* no chnage */
          } else if (strcmp(rule, "F1") == 0) {  /* for ancillary word */
          } else if (strcmp(rule, "F2") == 0) {
             if (NJDNode_get_acc(top_node) == 0)
@@ -182,11 +192,6 @@ void njd_set_accent_type(NJD * njd)
          } else if (strcmp(rule, "P1") == 0) {  /* for postfix */
             if (NJDNode_get_acc(node) == 0)
                NJDNode_set_acc(top_node, 0);
-            else
-               NJDNode_set_acc(top_node, mora_size + NJDNode_get_acc(node));
-         } else if (strcmp(rule, "P2") == 0) {
-            if (NJDNode_get_acc(node) == 0)
-               NJDNode_set_acc(top_node, mora_size + 1);
             else
                NJDNode_set_acc(top_node, mora_size + NJDNode_get_acc(node));
          } else if (strcmp(rule, "P6") == 0) {
