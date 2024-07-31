@@ -157,8 +157,6 @@ void njd_set_accent_type(NJD * njd)
          mora_size = 0;
          top_acc = NJDNode_get_acc(node);
          top_mora_size = NJDNode_get_mora_size(node);
-         printf("%d",top_acc);
-         printf("%d",top_mora_size);
 
       } else if (node->prev != NULL && NJDNode_get_chain_flag(node) == 1) {
          /* get accent change type */
