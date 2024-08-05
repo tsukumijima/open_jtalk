@@ -163,9 +163,8 @@ void njd_set_accent_type(NJD * njd)
          get_rule(NJDNode_get_chain_rule(node), NJDNode_get_pos(node->prev), rule, &add_type);
 
          /* change accent type */
-         if (strcmp(NJDNode_get_chain_rule(top_node), "P2") == 0) {
-            if (top_acc != 0 && top_mora_size > top_acc)
-               NJDNode_set_acc(top_node, top_acc);
+         if (strcmp(NJDNode_get_chain_rule(top_node), "P2") == 0 && top_acc != 0 && top_mora_size > top_acc) {
+            NJDNode_set_acc(top_node, top_acc);
          } else if (strcmp(rule, "*") == 0) {  /* no chnage */
          } else if (strcmp(rule, "F1") == 0) {  /* for ancillary word */
          } else if (strcmp(rule, "F2") == 0) {

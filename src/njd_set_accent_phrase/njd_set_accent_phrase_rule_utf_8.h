@@ -70,9 +70,9 @@ NJD_SET_ACCENT_PHRASE_RULE_H_START;
   Rule 16 「*,*,*,姓」の後の「*,*,*,名」は別のアクセント句に
   Rule 17 「名詞」の後の「*,*,*,名」は別のアクセント句に
   Rule 18 「*,接尾」は前にくっつける
-  Rule 19 「名詞,非自立」は「動詞」or「*,自立」or「助動詞,体言接続」or 「助詞」or「連体詞」に接続する場合に前にくっつける
+  Rule 19 「名詞,非自立」は「動詞」or「助動詞,体言接続」or 「助詞」or「連体詞」に接続する場合に前にくっつける
   Rule 20 「固有名詞」は前とくっつけない
-  Rule 21 「名詞,非自立」or「名詞,代名詞」の後の「名詞」は別のアクセント句に
+  Rule 21 「名詞,非自立」or「名詞,代名詞」の後の「名詞,一般」は別のアクセント句に
   Rule 22 「感動詞」は単独のアクセントに
 */
 
@@ -93,6 +93,7 @@ NJD_SET_ACCENT_PHRASE_RULE_H_START;
 #define NJD_SET_ACCENT_PHRASE_SETSUBI "接尾"
 #define NJD_SET_ACCENT_PHRASE_JIRITSU "自立"
 #define NJD_SET_ACCENT_PHRASE_HIJIRITSU "非自立"
+#define NJD_SET_ACCENT_PHRASE_IPPAN "一般"
 #define NJD_SET_ACCENT_PHRASE_RENYOU "連用"
 #define NJD_SET_ACCENT_PHRASE_SETSUZOKUJOSHI "接続助詞"
 #define NJD_SET_ACCENT_PHRASE_SAHEN_SETSUZOKU "サ変接続"
