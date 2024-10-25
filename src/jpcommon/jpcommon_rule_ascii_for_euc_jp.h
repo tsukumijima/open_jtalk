@@ -55,10 +55,12 @@ JPCOMMON_RULE_H_START;
 #define JPCOMMON_MORA_LONG_VOWEL "\xa1\xbc"
 #define JPCOMMON_MORA_SHORT_PAUSE "\xa1\xa2"
 #define JPCOMMON_MORA_QUESTION "\xa1\xa9"
+#define JPCOMMON_MORA_EXCLAMATION "\xa1\xab"
 #define JPCOMMON_PHONEME_SHORT_PAUSE "pau"
 #define JPCOMMON_PHONEME_SILENT "sil"
 #define JPCOMMON_PHONEME_UNKNOWN "xx"
 #define JPCOMMON_FLAG_QUESTION "1"
+#define JPCOMMON_FLAG_EXCLAMATION "1"
 
 static const char *jpcommon_unvoice_list[] = {
    "a", "A",

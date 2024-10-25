@@ -462,6 +462,7 @@ static const char *njd_set_pronunciation_list[] = {
 
 static const char *njd_set_pronunciation_symbol_list[] = {
    "？", "？",
+   "！", "！",
    NULL, NULL
 };
 
@@ -473,6 +474,7 @@ static const char *njd_set_pronunciation_symbol_list[] = {
 #define NJD_SET_PRONUNCIATION_CHOUON   "ー"
 
 #define NJD_SET_PRONUNCIATION_QUESTION  "？"
+#define NJD_SET_PRONUNCIATION_EXCLAMATION "！" // added by me
 #define NJD_SET_PRONUNCIATION_DESU_STR  "です"
 #define NJD_SET_PRONUNCIATION_MASU_STR  "ます"
 #define NJD_SET_PRONUNCIATION_DESU_PRON "デス"

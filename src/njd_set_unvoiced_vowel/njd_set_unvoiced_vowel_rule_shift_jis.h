@@ -52,317 +52,318 @@
 NJD_SET_UNVOICED_VOWEL_RULE_H_START;
 
 /*
-  –³ºŽq‰¹: k ky s sh t ty ch ts h f hy p py
-  Rule 0 ƒtƒBƒ‰[‚Í–³º‰»‚µ‚È‚¢
-  Rule 1 •“®ŽŒ‚Ìu‚Å‚·v‚Æu‚Ü‚·v‚Ìu‚·v‚ª–³º‰»
-  Rule 2 “®ŽŒC•“®ŽŒC•ŽŒ‚Ìu‚µv‚Í–³º‰»‚µ‚â‚·‚¢
-  Rule 3 ‘±‚¯‚Ä–³º‰»‚µ‚È‚¢
-  Rule 4 ƒAƒNƒZƒ“ƒgŠj‚Å–³º‰»‚µ‚È‚¢
-  Rule 5 –³ºŽq‰¹(k ky s sh t ty ch ts h f hy p py)‚ÉˆÍ‚Ü‚ê‚½uiv‚Æuuv‚ª–³º‰»
-         —áŠOFs->s, s->sh, f->f, f->h, f->hy, h->f, h->h, h->hy
+  ï¿½ï¿½ï¿½ï¿½ï¿½qï¿½ï¿½: k ky s sh t ty ch ts h f hy p py
+  Rule 0 ï¿½tï¿½Bï¿½ï¿½ï¿½[ï¿½Í–ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½
+  Rule 1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ìuï¿½Å‚ï¿½ï¿½vï¿½Æuï¿½Ü‚ï¿½ï¿½vï¿½Ìuï¿½ï¿½ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+  Rule 2 ï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½Ìuï¿½ï¿½ï¿½vï¿½Í–ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â‚·ï¿½ï¿½
+  Rule 3 ï¿½ï¿½ï¿½ï¿½ï¿½Ä–ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½
+  Rule 4 ï¿½Aï¿½Nï¿½Zï¿½ï¿½ï¿½gï¿½jï¿½Å–ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È‚ï¿½
+  Rule 5 ï¿½ï¿½ï¿½ï¿½ï¿½qï¿½ï¿½(k ky s sh t ty ch ts h f hy p py)ï¿½ÉˆÍ‚Ü‚ê‚½ï¿½uiï¿½vï¿½Æuuï¿½vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+         ï¿½ï¿½Oï¿½Fs->s, s->sh, f->f, f->h, f->hy, h->f, h->h, h->hy
 */
 
-#define NJD_SET_UNVOICED_VOWEL_FILLER "ƒtƒBƒ‰["
-#define NJD_SET_UNVOICED_VOWEL_DOUSHI "“®ŽŒ"
-#define NJD_SET_UNVOICED_VOWEL_JODOUSHI "•“®ŽŒ"
-#define NJD_SET_UNVOICED_VOWEL_JOSHI "•ŽŒ"
-#define NJD_SET_UNVOICED_VOWEL_KANDOUSHI "Š´“®ŽŒ"
-#define NJD_SET_UNVOICED_VOWEL_TOUTEN "A"
-#define NJD_SET_UNVOICED_VOWEL_QUESTION "H"
-#define NJD_SET_UNVOICED_VOWEL_QUOTATION "f"
-#define NJD_SET_UNVOICED_VOWEL_SHI "ƒV"
-#define NJD_SET_UNVOICED_VOWEL_MA "ƒ}"
-#define NJD_SET_UNVOICED_VOWEL_DE "ƒf"
-#define NJD_SET_UNVOICED_VOWEL_CHOUON "["
-#define NJD_SET_UNVOICED_VOWEL_SU "ƒX"
+#define NJD_SET_UNVOICED_VOWEL_FILLER "ï¿½tï¿½Bï¿½ï¿½ï¿½["
+#define NJD_SET_UNVOICED_VOWEL_DOUSHI "ï¿½ï¿½ï¿½ï¿½"
+#define NJD_SET_UNVOICED_VOWEL_JODOUSHI "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
+#define NJD_SET_UNVOICED_VOWEL_JOSHI "ï¿½ï¿½ï¿½ï¿½"
+#define NJD_SET_UNVOICED_VOWEL_KANDOUSHI "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
+#define NJD_SET_UNVOICED_VOWEL_TOUTEN "ï¿½A"
+#define NJD_SET_UNVOICED_VOWEL_QUESTION "ï¿½H"
+#define NJD_SET_UNVOICED_VOWEL_EXCLAMATION "ï¿½J" // added by me
+#define NJD_SET_UNVOICED_VOWEL_QUOTATION "ï¿½f"
+#define NJD_SET_UNVOICED_VOWEL_SHI "ï¿½V"
+#define NJD_SET_UNVOICED_VOWEL_MA "ï¿½}"
+#define NJD_SET_UNVOICED_VOWEL_DE "ï¿½f"
+#define NJD_SET_UNVOICED_VOWEL_CHOUON "ï¿½["
+#define NJD_SET_UNVOICED_VOWEL_SU "ï¿½X"
 
 static const char *njd_set_unvoiced_vowel_candidate_list1[] = {
-   "ƒVƒB",                    /* s i */
-   "ƒXƒB",                    /* s i */
-   "ƒX",                      /* s u */
+   "ï¿½Vï¿½B",                    /* s i */
+   "ï¿½Xï¿½B",                    /* s i */
+   "ï¿½X",                      /* s u */
    NULL
 };
 
 static const char *njd_set_unvoiced_vowel_next_mora_list1[] = {
-   "ƒJ",                       /* k ky */
-   "ƒL",
-   "ƒN",
-   "ƒP",
-   "ƒR",
-   "ƒ^",                       /* t ty ch ts */
-   "ƒ`",
-   "ƒc",
-   "ƒe",
-   "ƒg",
-   "ƒn",                       /* h f hy */
-   "ƒq",
-   "ƒt",
-   "ƒw",
-   "ƒz",
-   "ƒp",                       /* p py */
-   "ƒs",
-   "ƒv",
-   "ƒy",
-   "ƒ|",
+   "ï¿½J",                       /* k ky */
+   "ï¿½L",
+   "ï¿½N",
+   "ï¿½P",
+   "ï¿½R",
+   "ï¿½^",                       /* t ty ch ts */
+   "ï¿½`",
+   "ï¿½c",
+   "ï¿½e",
+   "ï¿½g",
+   "ï¿½n",                       /* h f hy */
+   "ï¿½q",
+   "ï¿½t",
+   "ï¿½w",
+   "ï¿½z",
+   "ï¿½p",                       /* p py */
+   "ï¿½s",
+   "ï¿½v",
+   "ï¿½y",
+   "ï¿½|",
    NULL
 };
 
 static const char *njd_set_unvoiced_vowel_candidate_list2[] = {
-   "ƒtƒB",                     /* f i */
-   "ƒq",                       /* h i */
-   "ƒt",                       /* f u */
+   "ï¿½tï¿½B",                     /* f i */
+   "ï¿½q",                       /* h i */
+   "ï¿½t",                       /* f u */
    NULL
 };
 
 static const char *njd_set_unvoiced_vowel_next_mora_list2[] = {
-   "ƒJ",                       /* k ky */
-   "ƒL",
-   "ƒN",
-   "ƒP",
-   "ƒR",
-   "ƒT",                       /* s sh */
-   "ƒV",
-   "ƒX",
-   "ƒZ",
-   "ƒ\",
-   "ƒ^",                       /* t ty ch ts */
-   "ƒ`",
-   "ƒc",
-   "ƒe",
-   "ƒg",
-   "ƒp",                       /* p py */
-   "ƒs",
-   "ƒv",
-   "ƒy",
-   "ƒ|",
+   "ï¿½J",                       /* k ky */
+   "ï¿½L",
+   "ï¿½N",
+   "ï¿½P",
+   "ï¿½R",
+   "ï¿½T",                       /* s sh */
+   "ï¿½V",
+   "ï¿½X",
+   "ï¿½Z",
+   "ï¿½\",
+   "ï¿½^",                       /* t ty ch ts */
+   "ï¿½`",
+   "ï¿½c",
+   "ï¿½e",
+   "ï¿½g",
+   "ï¿½p",                       /* p py */
+   "ï¿½s",
+   "ï¿½v",
+   "ï¿½y",
+   "ï¿½|",
    NULL
 };
 
 static const char *njd_set_unvoiced_vowel_candidate_list3[] = {
-   "ƒLƒ…",                    /* ky u */
-   "ƒVƒ…",                    /* sh u */
-   "ƒ`ƒ…",                    /* ch u */
-   "ƒcƒB",                    /* ts i */
-   "ƒqƒ…",                    /* hy u */
-   "ƒsƒ…",                    /* py u */
-   "ƒeƒ…",                    /* ty u */
-   "ƒgƒD",                    /* t u */
-   "ƒeƒB",                    /* t i */
-   "ƒL",                       /* k i */
-   "ƒN",                       /* k u */
-   "ƒV",                       /* sh i */
-   "ƒ`",                       /* ch i */
-   "ƒc",                       /* ts u */
-   "ƒs",                       /* p i */
-   "ƒv",                       /* p u */
+   "ï¿½Lï¿½ï¿½",                    /* ky u */
+   "ï¿½Vï¿½ï¿½",                    /* sh u */
+   "ï¿½`ï¿½ï¿½",                    /* ch u */
+   "ï¿½cï¿½B",                    /* ts i */
+   "ï¿½qï¿½ï¿½",                    /* hy u */
+   "ï¿½sï¿½ï¿½",                    /* py u */
+   "ï¿½eï¿½ï¿½",                    /* ty u */
+   "ï¿½gï¿½D",                    /* t u */
+   "ï¿½eï¿½B",                    /* t i */
+   "ï¿½L",                       /* k i */
+   "ï¿½N",                       /* k u */
+   "ï¿½V",                       /* sh i */
+   "ï¿½`",                       /* ch i */
+   "ï¿½c",                       /* ts u */
+   "ï¿½s",                       /* p i */
+   "ï¿½v",                       /* p u */
    NULL
 };
 
 static const char *njd_set_unvoiced_vowel_next_mora_list3[] = {
-   "ƒJ",                       /* k ky */
-   "ƒL",
-   "ƒN",
-   "ƒP",
-   "ƒR",
-   "ƒT",                       /* s sh */
-   "ƒV",
-   "ƒX",
-   "ƒZ",
-   "ƒ\",
-   "ƒ^",                       /* t ty ch ts */
-   "ƒ`",
-   "ƒc",
-   "ƒe",
-   "ƒg",
-   "ƒn",                       /* h f hy */
-   "ƒq",
-   "ƒt",
-   "ƒw",
-   "ƒz",
-   "ƒp",                       /* p py */
-   "ƒs",
-   "ƒv",
-   "ƒy",
-   "ƒ|",
+   "ï¿½J",                       /* k ky */
+   "ï¿½L",
+   "ï¿½N",
+   "ï¿½P",
+   "ï¿½R",
+   "ï¿½T",                       /* s sh */
+   "ï¿½V",
+   "ï¿½X",
+   "ï¿½Z",
+   "ï¿½\",
+   "ï¿½^",                       /* t ty ch ts */
+   "ï¿½`",
+   "ï¿½c",
+   "ï¿½e",
+   "ï¿½g",
+   "ï¿½n",                       /* h f hy */
+   "ï¿½q",
+   "ï¿½t",
+   "ï¿½w",
+   "ï¿½z",
+   "ï¿½p",                       /* p py */
+   "ï¿½s",
+   "ï¿½v",
+   "ï¿½y",
+   "ï¿½|",
    NULL
 };
 
 static const char *njd_set_unvoiced_vowel_mora_list[] = {
-   "ƒNƒ@",
-   "ƒNƒB",
-   "ƒNƒD",
-   "ƒNƒF",
-   "ƒNƒH", 
-   "ƒOƒ@", 
-   "ƒOƒB",
-   "ƒOƒD", 
-   "ƒOƒF", 
-   "ƒOƒH", 
-   "ƒNƒŽ",
-   "ƒOƒŽ",
-   "ƒŽ",
-   "ƒfƒF",
-   "ƒVƒB",
-   "ƒtƒB",
-   "ƒ”ƒ‡",
-   "ƒ”ƒ…",
-   "ƒ”ƒƒ",
-   "ƒ”ƒH",
-   "ƒ”ƒF",
-   "ƒ”ƒB",
-   "ƒ”ƒ@",
-   "ƒ”",
-   "ƒ“",
-   "ƒ’",
-   "ƒ‘",
-   "ƒ",
-   "ƒ",
-   "ƒ",
-   "ƒŒ",
-   "ƒ‹",
-   "ƒŠƒ‡",
-   "ƒŠƒ…",
-   "ƒŠƒƒ",
-   "ƒŠƒF",
-   "ƒŠ",
-   "ƒ‰",
-   "ƒˆ",
-   "ƒ‡",
-   "ƒ†",
-   "ƒ…",
-   "ƒ„",
-   "ƒƒ",
-   "ƒ‚",
-   "ƒ",
-   "ƒ€",
-   "ƒ~ƒ‡",
-   "ƒ~ƒ…",
-   "ƒ~ƒƒ",
-   "ƒ~ƒF",
-   "ƒ~",
-   "ƒ}",
-   "ƒ|",
-   "ƒ{",
-   "ƒz",
-   "ƒy",
-   "ƒx",
-   "ƒw",
-   "ƒv",
-   "ƒu",
-   "ƒtƒH",
-   "ƒtƒF",
-   "ƒtƒB",
-   "ƒtƒ@",
-   "ƒt",
-   "ƒsƒ‡",
-   "ƒsƒ…",
-   "ƒsƒƒ",
-   "ƒsƒF",
-   "ƒs",
-   "ƒrƒ‡",
-   "ƒrƒ…",
-   "ƒrƒƒ",
-   "ƒrƒF",
-   "ƒr",
-   "ƒqƒ‡",
-   "ƒqƒ…",
-   "ƒqƒƒ",
-   "ƒqƒF",
-   "ƒq",
-   "ƒp",
-   "ƒo",
-   "ƒn",
-   "ƒm",
-   "ƒl",
-   "ƒk",
-   "ƒjƒ‡",
-   "ƒjƒ…",
-   "ƒjƒƒ",
-   "ƒjƒF",
-   "ƒj",
-   "ƒi",
-   "ƒhƒD",
-   "ƒh",
-   "ƒgƒD",
-   "ƒg",
-   "ƒfƒ‡",
-   "ƒfƒ…",
-   "ƒfƒƒ",
-   "ƒfƒB",
-   "ƒf",
-   "ƒeƒ‡",
-   "ƒeƒ…",
-   "ƒeƒƒ",
-   "ƒeƒB",
-   "ƒe",
-   "ƒd",
-   "ƒcƒH",
-   "ƒcƒF",
-   "ƒcƒB",
-   "ƒcƒ@",
-   "ƒc",
-   "ƒb",
-   "ƒa",
-   "ƒ`ƒ‡",
-   "ƒ`ƒ…",
-   "ƒ`ƒƒ",
-   "ƒ`ƒF",
-   "ƒ`",
-   "ƒ_",
-   "ƒ^",
-   "ƒ]",
-   "ƒ\",
-   "ƒ[",
-   "ƒZ",
-   "ƒYƒB",
-   "ƒY",
-   "ƒXƒB",
-   "ƒX",
-   "ƒWƒ‡",
-   "ƒWƒ…",
-   "ƒWƒƒ",
-   "ƒWƒF",
-   "ƒW",
-   "ƒVƒ‡",
-   "ƒVƒ…",
-   "ƒVƒƒ",
-   "ƒVƒF",
-   "ƒV",
-   "ƒU",
-   "ƒT",
-   "ƒS",
-   "ƒR",
-   "ƒQ",
-   "ƒP",
-   "ƒO",
-   "ƒN",
-   "ƒMƒ‡",
-   "ƒMƒ…",
-   "ƒMƒƒ",
-   "ƒMƒF",
-   "ƒM",
-   "ƒLƒ‡",
-   "ƒLƒ…",
-   "ƒLƒƒ",
-   "ƒLƒF",
-   "ƒL",
-   "ƒK",
-   "ƒJ",
-   "ƒI",
-   "ƒH",
-   "ƒG",
-   "ƒF",
-   "ƒEƒH",
-   "ƒEƒF",
-   "ƒEƒB",
-   "ƒE",
-   "ƒD",
-   "ƒCƒF",
-   "ƒC",
-   "ƒB",
-   "ƒA",
-   "ƒ@",
-   "[",
+   "ï¿½Nï¿½@",
+   "ï¿½Nï¿½B",
+   "ï¿½Nï¿½D",
+   "ï¿½Nï¿½F",
+   "ï¿½Nï¿½H", 
+   "ï¿½Oï¿½@", 
+   "ï¿½Oï¿½B",
+   "ï¿½Oï¿½D", 
+   "ï¿½Oï¿½F", 
+   "ï¿½Oï¿½H", 
+   "ï¿½Nï¿½ï¿½",
+   "ï¿½Oï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½fï¿½F",
+   "ï¿½Vï¿½B",
+   "ï¿½tï¿½B",
+   "ï¿½ï¿½ï¿½ï¿½",
+   "ï¿½ï¿½ï¿½ï¿½",
+   "ï¿½ï¿½ï¿½ï¿½",
+   "ï¿½ï¿½ï¿½H",
+   "ï¿½ï¿½ï¿½F",
+   "ï¿½ï¿½ï¿½B",
+   "ï¿½ï¿½ï¿½@",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½ï¿½ï¿½",
+   "ï¿½ï¿½ï¿½ï¿½",
+   "ï¿½ï¿½ï¿½ï¿½",
+   "ï¿½ï¿½ï¿½F",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½ï¿½",
+   "ï¿½~ï¿½ï¿½",
+   "ï¿½~ï¿½ï¿½",
+   "ï¿½~ï¿½ï¿½",
+   "ï¿½~ï¿½F",
+   "ï¿½~",
+   "ï¿½}",
+   "ï¿½|",
+   "ï¿½{",
+   "ï¿½z",
+   "ï¿½y",
+   "ï¿½x",
+   "ï¿½w",
+   "ï¿½v",
+   "ï¿½u",
+   "ï¿½tï¿½H",
+   "ï¿½tï¿½F",
+   "ï¿½tï¿½B",
+   "ï¿½tï¿½@",
+   "ï¿½t",
+   "ï¿½sï¿½ï¿½",
+   "ï¿½sï¿½ï¿½",
+   "ï¿½sï¿½ï¿½",
+   "ï¿½sï¿½F",
+   "ï¿½s",
+   "ï¿½rï¿½ï¿½",
+   "ï¿½rï¿½ï¿½",
+   "ï¿½rï¿½ï¿½",
+   "ï¿½rï¿½F",
+   "ï¿½r",
+   "ï¿½qï¿½ï¿½",
+   "ï¿½qï¿½ï¿½",
+   "ï¿½qï¿½ï¿½",
+   "ï¿½qï¿½F",
+   "ï¿½q",
+   "ï¿½p",
+   "ï¿½o",
+   "ï¿½n",
+   "ï¿½m",
+   "ï¿½l",
+   "ï¿½k",
+   "ï¿½jï¿½ï¿½",
+   "ï¿½jï¿½ï¿½",
+   "ï¿½jï¿½ï¿½",
+   "ï¿½jï¿½F",
+   "ï¿½j",
+   "ï¿½i",
+   "ï¿½hï¿½D",
+   "ï¿½h",
+   "ï¿½gï¿½D",
+   "ï¿½g",
+   "ï¿½fï¿½ï¿½",
+   "ï¿½fï¿½ï¿½",
+   "ï¿½fï¿½ï¿½",
+   "ï¿½fï¿½B",
+   "ï¿½f",
+   "ï¿½eï¿½ï¿½",
+   "ï¿½eï¿½ï¿½",
+   "ï¿½eï¿½ï¿½",
+   "ï¿½eï¿½B",
+   "ï¿½e",
+   "ï¿½d",
+   "ï¿½cï¿½H",
+   "ï¿½cï¿½F",
+   "ï¿½cï¿½B",
+   "ï¿½cï¿½@",
+   "ï¿½c",
+   "ï¿½b",
+   "ï¿½a",
+   "ï¿½`ï¿½ï¿½",
+   "ï¿½`ï¿½ï¿½",
+   "ï¿½`ï¿½ï¿½",
+   "ï¿½`ï¿½F",
+   "ï¿½`",
+   "ï¿½_",
+   "ï¿½^",
+   "ï¿½]",
+   "ï¿½\",
+   "ï¿½[",
+   "ï¿½Z",
+   "ï¿½Yï¿½B",
+   "ï¿½Y",
+   "ï¿½Xï¿½B",
+   "ï¿½X",
+   "ï¿½Wï¿½ï¿½",
+   "ï¿½Wï¿½ï¿½",
+   "ï¿½Wï¿½ï¿½",
+   "ï¿½Wï¿½F",
+   "ï¿½W",
+   "ï¿½Vï¿½ï¿½",
+   "ï¿½Vï¿½ï¿½",
+   "ï¿½Vï¿½ï¿½",
+   "ï¿½Vï¿½F",
+   "ï¿½V",
+   "ï¿½U",
+   "ï¿½T",
+   "ï¿½S",
+   "ï¿½R",
+   "ï¿½Q",
+   "ï¿½P",
+   "ï¿½O",
+   "ï¿½N",
+   "ï¿½Mï¿½ï¿½",
+   "ï¿½Mï¿½ï¿½",
+   "ï¿½Mï¿½ï¿½",
+   "ï¿½Mï¿½F",
+   "ï¿½M",
+   "ï¿½Lï¿½ï¿½",
+   "ï¿½Lï¿½ï¿½",
+   "ï¿½Lï¿½ï¿½",
+   "ï¿½Lï¿½F",
+   "ï¿½L",
+   "ï¿½K",
+   "ï¿½J",
+   "ï¿½I",
+   "ï¿½H",
+   "ï¿½G",
+   "ï¿½F",
+   "ï¿½Eï¿½H",
+   "ï¿½Eï¿½F",
+   "ï¿½Eï¿½B",
+   "ï¿½E",
+   "ï¿½D",
+   "ï¿½Cï¿½F",
+   "ï¿½C",
+   "ï¿½B",
+   "ï¿½A",
+   "ï¿½@",
+   "ï¿½[",
    NULL
 };
 

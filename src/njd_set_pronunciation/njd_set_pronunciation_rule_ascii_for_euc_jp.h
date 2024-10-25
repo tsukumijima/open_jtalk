@@ -472,6 +472,7 @@ static const char *njd_set_pronunciation_symbol_list[] = {
 #define NJD_SET_PRONUNCIATION_CHOUON   "\xa1\xbc"
 
 #define NJD_SET_PRONUNCIATION_QUESTION  "\xa1\xa9"
+#define NJD_SET_PRONUNCIATION_EXCLAMATION "\xa1\xa9" // added by me
 #define NJD_SET_PRONUNCIATION_DESU_STR  "\xa4\xc7\xa4\xb9"
 #define NJD_SET_PRONUNCIATION_MASU_STR  "\xa4\xde\xa4\xb9"
 #define NJD_SET_PRONUNCIATION_DESU_PRON "\xa5\xc7\xa5\xb9"
