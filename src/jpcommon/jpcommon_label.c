@@ -454,9 +454,6 @@ void JPCommonLabel_push_word(JPCommonLabel * label, const char *pron, const char
    int find;
    int is_first_word = 1;
 
-   /* print pron for debug*/
-   printf("pron: %s\n", pron);
-
    if (strcmp(pron, JPCOMMON_MORA_SHORT_PAUSE) == 0) {
       label->short_pause_flag = 1;
       return;
