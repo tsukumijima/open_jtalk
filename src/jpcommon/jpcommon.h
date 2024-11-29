@@ -90,6 +90,7 @@ typedef struct _JPCommonLabelWord {
 typedef struct _JPCommonLabelAccentPhrase {
    int accent;
    char *emotion;
+   char *excl; // added by me
    struct _JPCommonLabelWord *head;
    struct _JPCommonLabelWord *tail;
    struct _JPCommonLabelAccentPhrase *prev;

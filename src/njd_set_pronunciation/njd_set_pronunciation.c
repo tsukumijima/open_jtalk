@@ -206,9 +206,19 @@ void njd_set_pronunciation(NJD * njd)
           && NJDNode_get_mora_size(node) > 0) {
          NJDNode_set_pron(node->next, NJD_SET_PRONUNCIATION_CHOUON);
       }
+
       if (node->next != NULL
           && strcmp(NJDNode_get_pos(node), NJD_SET_PRONUNCIATION_JODOUSHI) == 0
           && strcmp(NJDNode_get_string(node->next), NJD_SET_PRONUNCIATION_QUESTION) == 0) {
+         if (strcmp(NJDNode_get_string(node), NJD_SET_PRONUNCIATION_DESU_STR) == 0)
+            NJDNode_set_pron(node, NJD_SET_PRONUNCIATION_DESU_PRON);
+         else if (strcmp(NJDNode_get_string(node), NJD_SET_PRONUNCIATION_MASU_STR) == 0)
+            NJDNode_set_pron(node, NJD_SET_PRONUNCIATION_MASU_PRON);
+      }
+
+      if (node->next != NULL
+          && strcmp(NJDNode_get_pos(node), NJD_SET_PRONUNCIATION_JODOUSHI) == 0
+          && strcmp(NJDNode_get_string(node->next), NJD_SET_PRONUNCIATION_EXCLAMATION) == 0) {
          if (strcmp(NJDNode_get_string(node), NJD_SET_PRONUNCIATION_DESU_STR) == 0)
             NJDNode_set_pron(node, NJD_SET_PRONUNCIATION_DESU_PRON);
          else if (strcmp(NJDNode_get_string(node), NJD_SET_PRONUNCIATION_MASU_STR) == 0)

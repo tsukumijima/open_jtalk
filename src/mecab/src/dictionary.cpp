@@ -5,7 +5,6 @@
 //  Copyright(C) 2004-2006 Nippon Telegraph and Telephone Corporation
 #include <fstream>
 #include <climits>
-#include <functional>
 #include "connector.h"
 #include "context_id.h"
 #include "char_property.h"

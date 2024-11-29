@@ -52,6 +52,38 @@
 NJD_SET_PRONUNCIATION_RULE_H_START;
 
 static const char *njd_set_pronunciation_list[] = {
+   "くぁ", "クァ", "1",
+   "くぃ", "クィ", "1",
+   "くぅ", "クゥ", "1",
+   "くぇ", "クェ", "1",
+   "くぉ", "クォ", "1",
+   "くゎ", "クヮ", "1",
+   "ぐぁ", "グァ", "1",
+   "ぐぃ", "グィ", "1",
+   "ぐぅ", "グゥ", "1",
+   "ぐぇ", "グェ", "1",
+   "ぐぉ", "グォ", "1",
+   "ぐゎ", "グヮ", "1",
+   "しぃ", "シィ", "1",
+   "でぇ", "デェ", "1",
+   "ふゅ", "フュ", "1",
+   "ゎ", "ヮ", "1",
+   "クァ", "クァ", "1",
+   "クィ", "クィ", "1",
+   "クゥ", "クゥ", "1",
+   "クェ", "クェ", "1",
+   "クォ", "クォ", "1",
+   "クヮ", "クヮ", "1",
+   "グァ", "グァ", "1",
+   "グィ", "グィ", "1",
+   "グゥ", "グゥ", "1",
+   "グェ", "グェ", "1",
+   "グォ", "グォ", "1",
+   "グヮ", "グヮ", "1",
+   "シィ", "シィ", "1",
+   "デェ", "デェ", "1",
+   "フュ", "フュ", "1",
+   "ヮ", "ヮ", "1",
    "ヴョ", "ヴョ", "1",
    "ヴュ", "ヴュ", "1",
    "ヴャ", "ヴャ", "1",
@@ -222,6 +254,7 @@ static const char *njd_set_pronunciation_list[] = {
    "を", "ヲ", "1",
    "ゑ", "ヱ", "1",
    "ゐ", "ヰ", "1",
+   "ゎ", "ヮ", "1",
    "わ", "ワ", "1",
    "ろ", "ロ", "1",
    "れ", "レ", "1",
@@ -429,6 +462,7 @@ static const char *njd_set_pronunciation_list[] = {
 
 static const char *njd_set_pronunciation_symbol_list[] = {
    "？", "？",
+   "！", "！",
    NULL, NULL
 };
 
@@ -440,6 +474,7 @@ static const char *njd_set_pronunciation_symbol_list[] = {
 #define NJD_SET_PRONUNCIATION_CHOUON   "ー"
 
 #define NJD_SET_PRONUNCIATION_QUESTION  "？"
+#define NJD_SET_PRONUNCIATION_EXCLAMATION "！" // added by me
 #define NJD_SET_PRONUNCIATION_DESU_STR  "です"
 #define NJD_SET_PRONUNCIATION_MASU_STR  "ます"
 #define NJD_SET_PRONUNCIATION_DESU_PRON "デス"

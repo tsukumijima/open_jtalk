@@ -69,6 +69,7 @@ NJD_SET_UNVOICED_VOWEL_RULE_H_START;
 #define NJD_SET_UNVOICED_VOWEL_KANDOUSHI "感動詞"
 #define NJD_SET_UNVOICED_VOWEL_TOUTEN "、"
 #define NJD_SET_UNVOICED_VOWEL_QUESTION "？"
+#define NJD_SET_UNVOICED_VOWEL_EXCLAMATION "！" // added by me
 #define NJD_SET_UNVOICED_VOWEL_QUOTATION "’"
 #define NJD_SET_UNVOICED_VOWEL_SHI "シ"
 #define NJD_SET_UNVOICED_VOWEL_MA "マ"
@@ -77,8 +78,9 @@ NJD_SET_UNVOICED_VOWEL_RULE_H_START;
 #define NJD_SET_UNVOICED_VOWEL_SU "ス"
 
 static const char *njd_set_unvoiced_vowel_candidate_list1[] = {
+   "シィ",                    /* s i */
    "スィ",                    /* s i */
-   "ス",                       /* s u */
+   "ス",                      /* s u */
    NULL
 };
 
@@ -107,7 +109,7 @@ static const char *njd_set_unvoiced_vowel_next_mora_list1[] = {
 };
 
 static const char *njd_set_unvoiced_vowel_candidate_list2[] = {
-   "フィ",                    /* f i */
+   "フィ",                     /* f i */
    "ヒ",                       /* h i */
    "フ",                       /* f u */
    NULL
@@ -187,6 +189,22 @@ static const char *njd_set_unvoiced_vowel_next_mora_list3[] = {
 };
 
 static const char *njd_set_unvoiced_vowel_mora_list[] = {
+   "クァ",
+   "クィ",
+   "クゥ",
+   "クェ",
+   "クォ",
+   "グァ",
+   "グィ",
+   "グゥ",
+   "グェ",
+   "グォ",
+   "クヮ",
+   "グヮ",
+   "ヮ",
+   "デェ",
+   "シィ",
+   "フィ",
    "ヴョ",
    "ヴュ",
    "ヴャ",

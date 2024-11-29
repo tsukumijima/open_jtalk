@@ -69,6 +69,7 @@ NJD_SET_UNVOICED_VOWEL_RULE_H_START;
 #define NJD_SET_UNVOICED_VOWEL_KANDOUSHI "\x8a\xb4\x93\xae\x8e\x8c"
 #define NJD_SET_UNVOICED_VOWEL_TOUTEN "\x81\x41"
 #define NJD_SET_UNVOICED_VOWEL_QUESTION "\x81\x48"
+#define NJD_SET_UNVOICED_VOWEL_EXCLAMATION "\x81\x49" // added by me
 #define NJD_SET_UNVOICED_VOWEL_QUOTATION "\x81\x66"
 #define NJD_SET_UNVOICED_VOWEL_SHI "\x83\x56"
 #define NJD_SET_UNVOICED_VOWEL_MA "\x83\x7d"
@@ -77,6 +78,7 @@ NJD_SET_UNVOICED_VOWEL_RULE_H_START;
 #define NJD_SET_UNVOICED_VOWEL_SU "\x83\x58"
 
 static const char *njd_set_unvoiced_vowel_candidate_list1[] = {
+   "\x83\x56\x83\x42",                    /* s i */
    "\x83\x58\x83\x42",                    /* s i */
    "\x83\x58",                       /* s u */
    NULL
@@ -187,6 +189,22 @@ static const char *njd_set_unvoiced_vowel_next_mora_list3[] = {
 };
 
 static const char *njd_set_unvoiced_vowel_mora_list[] = {
+   "\x83\x4e\x83\x40",
+   "\x83\x4e\x83\x42",
+   "\x83\x4e\x83\x44",
+   "\x83\x4e\x83\x46",
+   "\x83\x4e\x83\x48",
+   "\x83\x4f\x83\x40",
+   "\x83\x4f\x83\x42",
+   "\x83\x4f\x83\x44",
+   "\x83\x4f\x83\x46",
+   "\x83\x4f\x83\x48",
+   "\x83\x56\x83\x42",
+   "\x83\x4e\x83\x40",
+   "\x83\x4f\x83\x40",
+   "\x83\x8e",
+   "\x83\x66\x83\x46",
+   "\x83\x74\x83\x85",
    "\x83\x94\x83\x87",
    "\x83\x94\x83\x85",
    "\x83\x94\x83\x83",

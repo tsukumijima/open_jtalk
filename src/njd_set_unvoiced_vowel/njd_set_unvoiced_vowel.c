@@ -140,6 +140,12 @@ static void get_mora_information(NJDNode * node, int index, const char **mora, N
       *size = strlen(NJD_SET_UNVOICED_VOWEL_QUESTION);
       return;
    }
+   if (strcmp(str, NJD_SET_UNVOICED_VOWEL_EXCLAMATION) == 0) { // added by me
+      *mora = NJD_SET_UNVOICED_VOWEL_EXCLAMATION;
+      *flag = 0;
+      *size = strlen(NJD_SET_UNVOICED_VOWEL_EXCLAMATION);
+      return;
+   }
 
    /* reset */
    *mora = NULL;

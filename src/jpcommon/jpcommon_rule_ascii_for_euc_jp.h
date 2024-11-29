@@ -55,10 +55,12 @@ JPCOMMON_RULE_H_START;
 #define JPCOMMON_MORA_LONG_VOWEL "\xa1\xbc"
 #define JPCOMMON_MORA_SHORT_PAUSE "\xa1\xa2"
 #define JPCOMMON_MORA_QUESTION "\xa1\xa9"
+#define JPCOMMON_MORA_EXCLAMATION "\xa1\xab"
 #define JPCOMMON_PHONEME_SHORT_PAUSE "pau"
 #define JPCOMMON_PHONEME_SILENT "sil"
 #define JPCOMMON_PHONEME_UNKNOWN "xx"
 #define JPCOMMON_FLAG_QUESTION "1"
+#define JPCOMMON_FLAG_EXCLAMATION "1"
 
 static const char *jpcommon_unvoice_list[] = {
    "a", "A",
@@ -70,6 +72,22 @@ static const char *jpcommon_unvoice_list[] = {
 };
 
 static const char *jpcommon_mora_list[] = {
+   "\xa5\xaf\xa5\xa1", "kw", "a",
+   "\xa5\xaf\xa5\xa3", "kw", "i",
+   "\xa5\xaf\xa5\xa5", "kw", "u",
+   "\xa5\xaf\xa5\xa7", "kw", "e",
+   "\xa5\xaf\xa5\xa9", "kw", "o",
+   "\xa5\xb0\xa5\xa1", "gw", "a",
+   "\xa5\xb0\xa5\xa3", "gw", "i",
+   "\xa5\xb0\xa5\xa5", "gw", "u",
+   "\xa5\xb0\xa5\xa7", "gw", "e",
+   "\xa5\xb0\xa5\xa9", "gw", "o",
+   "\xa5\xb7\xa5\xa3", "s", "i",
+   "\xa5\xc7\xa5\xa7", "dy", "e",
+   "\xa5\xd5\xa5\xe5", "fy", "u",
+   "\xa5\xaf\xa5\xa1", "kw", "a",
+   "\xa5\xb0\xa5\xa1", "gw", "a",
+   "\xa5\xee", "w", "a",
    "\xa5\xf4\xa5\xe7", "by", "o",
    "\xa5\xf4\xa5\xe5", "by", "u",
    "\xa5\xf4\xa5\xe3", "by", "a",
