@@ -229,9 +229,24 @@ bool is_valid_node(const Lattice *lattice,  N *node) {
   }
   return false;
 }
+
+template <typename N>
+bool has_user_dictionary_node_of_length(N *node, size_t length) {
+  for (; node; node = node->bnext) {
+    // System dictionary is 0 and unknown nodes retain MECAB_NO_DICTIONARY_INDEX.
+    if (node->dictionary_index != 0 &&
+        node->dictionary_index != MECAB_NO_DICTIONARY_INDEX &&
+        node->length == length) {
+      return true;
+    }
+  }
+  return false;
+}
 }  // namespace
 
 #define ADDUNKNWON do {                                                  \
+    /* An exact user dictionary entry owns its surface even for INVOKE categories. */ \
+    if (has_user_dictionary_node_of_length(result_node, begin3 - begin2)) { break; } \
     const Token *token = unk_tokens_[cinfo.default_type].first;          \
     size_t size  = unk_tokens_[cinfo.default_type].second;               \
     for (size_t k = 0; k < size; ++k) {                                  \
