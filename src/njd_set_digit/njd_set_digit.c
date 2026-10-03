@@ -403,6 +403,11 @@ static void restore_counter_features(NJD *njd)
    int i;
 
    for (node = njd->head; node != NULL; node = node->next) {
+      /* ユーザー辞書で読みを保護した「2 人」の名詞「ヒト」は、助数詞「ニン」への変換対象から外して登録された読みを保つ */
+      if (strcmp(NJDNode_get_pos_group3(node), "読み保護") == 0) {
+         NJDNode_set_pos_group3(node, "*");
+         continue;
+      }
       /* 「2024 年」「10 時」の一般名詞や非自立名詞を対象にし、既に助数詞である「2024年」は辞書の値を保つ */
       if (node->prev == NULL ||
           strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0 ||
