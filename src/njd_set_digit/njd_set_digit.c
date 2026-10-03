@@ -371,6 +371,110 @@ static void convert_digit_pron(const char *list[], NJDNode * node)
 }
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+static int calendar_month_number(NJDNode *counter)
+{
+   NJDNode *node, *start = counter->prev;
+   int value = 0, digit, count = 0;
+
+   /* 「1 月」「０５ 月」「十一 月」は暦の月とし、「20 月」のような期間は「ツキ」の読みを保つ */
+   while (start->prev != NULL &&
+          strcmp(NJDNode_get_pos_group1(start->prev), NJD_SET_DIGIT_KAZU) == 0)
+      start = start->prev;
+   if (strcmp(NJDNode_get_string(start), NJD_SET_DIGIT_TEN) == 0) {
+      if (start->next == counter)
+         return 10;
+      digit = get_digit(start->next, 0);
+      if (start->next->next == counter && digit >= 1 && digit <= 2)
+         return 10 + digit;
+      return 0;
+   }
+   for (node = start; node != counter; node = node->next) {
+      digit = get_digit(node, 0);
+      if (digit < 0 || ++count > 2)
+         return 0;
+      value = value * 10 + digit;
+   }
+   return value >= 1 && value <= 12 ? value : 0;
+}
+
+static void restore_counter_features(NJD *njd)
+{
+   NJDNode *node, *start;
+   int i;
+
+   for (node = njd->head; node != NULL; node = node->next) {
+      /* 「2024 年」「10 時」の一般名詞や非自立名詞を対象にし、既に助数詞である「2024年」は辞書の値を保つ */
+      if (node->prev == NULL ||
+          strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0 ||
+          strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
+          !((strcmp(NJDNode_get_pos(node), NJD_SET_DIGIT_MEISHI) == 0 &&
+             (strcmp(NJDNode_get_pos_group1(node), "一般") == 0 ||
+              strcmp(NJDNode_get_pos_group1(node), "非自立") == 0 ||
+              strcmp(NJDNode_get_pos_group1(node), "接尾") == 0)) ||
+            (strcmp(NJDNode_get_pos(node), "接頭詞") == 0 &&
+             strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_SUUSETSUZOKU) == 0)))
+         continue;
+      /* 「場面6 人前で話す」の6は場面番号とし、後ろの「人」は「ヒト」の読みを保つ */
+      start = node->prev;
+      while (start->prev != NULL &&
+             strcmp(NJDNode_get_pos_group1(start->prev), NJD_SET_DIGIT_KAZU) == 0)
+         start = start->prev;
+      if (start->prev != NULL &&
+          (strcmp(NJDNode_get_string(start->prev), "場面") == 0 ||
+           strcmp(NJDNode_get_string(start->prev), "発言") == 0 ||
+           strcmp(NJDNode_get_string(start->prev), "図表") == 0 ||
+           strcmp(NJDNode_get_string(start->prev), "図") == 0 ||
+           strcmp(NJDNode_get_string(start->prev), "表") == 0))
+         continue;
+      /* 「２ 人づくりの基盤」は見出し番号と人材育成の名詞なので、「人づくり」の「ヒト」を保つ */
+      if (strcmp(NJDNode_get_string(node), "人") == 0 && node->next != NULL &&
+          strcmp(NJDNode_get_string(node->next), "づくり") == 0)
+         continue;
+      /* 割合を表す「3 分の1」の「分」は「ブン」のまま、時間量の「3 分」は「フン」へ戻す */
+      if (strcmp(NJDNode_get_string(node), "分") == 0 && node->next != NULL &&
+          strcmp(NJDNode_get_string(node->next), "の") == 0 && node->next->next != NULL &&
+          strcmp(NJDNode_get_pos_group1(node->next->next), NJD_SET_DIGIT_KAZU) == 0)
+         continue;
+      /* 期間を表す「20 月」は「ツキ」と読み、暦の「ガツ」は1〜12月に限る */
+      if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_GATSU) == 0 &&
+          calendar_month_number(node) == 0)
+         continue;
+      for (i = 0; njd_set_digit_rule_counter_features[i][0] != NULL; i++) {
+         /* 「１ 日本文化」「５ 本書」「図表３ 年齢」は「日」「本」「年」と表層全体が一致しないので、その語の読みを保つ */
+         if (strcmp(NJDNode_get_string(node), njd_set_digit_rule_counter_features[i][0]) != 0)
+            continue;
+         NJDNode_set_pos(node, NJD_SET_DIGIT_MEISHI);
+         NJDNode_set_pos_group1(node, "接尾");
+         NJDNode_set_pos_group2(node, NJD_SET_DIGIT_JOSUUSHI);
+         NJDNode_set_read(node, njd_set_digit_rule_counter_features[i][1]);
+         NJDNode_set_pron(node, njd_set_digit_rule_counter_features[i][2]);
+         NJDNode_set_acc(node, atoi(njd_set_digit_rule_counter_features[i][3]));
+         NJDNode_set_mora_size(node, atoi(njd_set_digit_rule_counter_features[i][4]));
+         NJDNode_set_chain_rule(node, njd_set_digit_rule_counter_features[i][5]);
+         NJDNode_set_chain_flag(node, -1);
+         /* 「1 月」の暦の読みは、番号の保護を解除した後で「1月」と同じアクセントにする */
+         if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_GATSU) == 0)
+            NJDNode_set_pos_group3(node, "暦月");
+         break;
+      }
+   }
+}
+
+static void set_restored_month_accents(NJD *njd)
+{
+   NJDNode *node;
+   int month;
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_pos_group3(node), "暦月") != 0)
+         continue;
+      month = calendar_month_number(node);
+      /* NHK アクセント辞典に従い、「1 月」「2 月」は尾高型にし、「3 月」「5 月」「9 月」は「サ＼ンガツ」「ゴ＼ガツ」「ク＼ガツ」と読む */
+      NJDNode_set_chain_rule(node, month == 3 ? "F4@-1" :
+                            (month == 5 || month == 9 ? "F4@0" : "F4@2"));
+      NJDNode_set_pos_group3(node, "*");
+   }
+}
+
 static int is_decimal_digit(NJDNode * digit)
 {
    NJDNode *integer;
@@ -1338,7 +1442,10 @@ void njd_set_digit(NJD * njd)
    NJDNode *node;
    int find = 0;
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
-   NJDNumberSequence *number_sequences = prepare_number_sequences(njd);
+   NJDNumberSequence *number_sequences;
+   /* 「3 本」の「ホン」を助数詞へ戻してから、「サンボン」の濁音化とアクセント結合を適用する */
+   restore_counter_features(njd);
+   number_sequences = prepare_number_sequences(njd);
    /* 「070」のように全桁を番号として保護した文でも、通常の数詞処理の後で品詞を戻す */
    if (number_sequences != NULL)
       find = 1;
@@ -1741,6 +1848,7 @@ void njd_set_digit(NJD * njd)
    set_digit_accent_rules(njd);
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
    finish_number_sequences(number_sequences);
+   set_restored_month_accents(njd);
    set_identifier_numerical_accents(njd);
    set_flight_number_accent(njd);
    set_railway_series_accent(njd);
