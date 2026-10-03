@@ -399,7 +399,7 @@ static int calendar_month_number(NJDNode *counter)
 
 static void restore_counter_features(NJD *njd)
 {
-   NJDNode *node, *start;
+   NJDNode *node, *start, *next;
    int i;
 
    for (node = njd->head; node != NULL; node = node->next) {
@@ -435,10 +435,20 @@ static void restore_counter_features(NJD *njd)
           strcmp(NJDNode_get_string(node->next), "の") == 0 && node->next->next != NULL &&
           strcmp(NJDNode_get_pos_group1(node->next->next), NJD_SET_DIGIT_KAZU) == 0)
          continue;
-      /* 期間を表す「20 月」は「ツキ」と読み、暦の「ガツ」は1〜12月に限る */
-      if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_GATSU) == 0 &&
-          calendar_month_number(node) == 0)
-         continue;
+      /* 「1 月」「1 月に会う」「2008 年 05 月 05 日」は日付として「ガツ」に戻し、「1 月ほど待った」「一 月が過ぎた」は解析済みの「ツキ」を保つ */
+      if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_GATSU) == 0) {
+         if (calendar_month_number(node) == 0)
+            continue;
+         next = node->next;
+         while (next != NULL && strcmp(NJDNode_get_pos_group1(next), NJD_SET_DIGIT_KAZU) == 0)
+            next = next->next;
+         if (node->next != NULL &&
+             (start->prev == NULL || strcmp(NJDNode_get_string(start->prev), "年") != 0) &&
+             (next == NULL || strcmp(NJDNode_get_string(next), "日") != 0) &&
+             !(strcmp(NJDNode_get_pos_group1(node->next), "格助詞") == 0 &&
+               strcmp(NJDNode_get_string(node->next), "に") == 0))
+            continue;
+      }
       for (i = 0; njd_set_digit_rule_counter_features[i][0] != NULL; i++) {
          /* 「１ 日本文化」「５ 本書」「図表３ 年齢」は「日」「本」「年」と表層全体が一致しないので、その語の読みを保つ */
          if (strcmp(NJDNode_get_string(node), njd_set_digit_rule_counter_features[i][0]) != 0)
@@ -898,26 +908,40 @@ static int has_phone_context(NJDNode *start)
 {
    NJDNode *node;
    int distance = 0;
-   /* 「市外局番213の、486ー2435」「電話 03 1234 5678」は最後の組まで電話の文脈を保つ */
+   /* 「市外局番213の、486ー2435」「電話 03 1234 5678」は区切りと数字をたどり、電話番号の最後の組まで文脈を保つ */
    for (node = start->prev; node != NULL && distance < 16; node = node->prev, distance++) {
       if (strcmp(NJDNode_get_string(node), "電話") == 0 ||
           strcmp(NJDNode_get_string(node), "電話番号") == 0 ||
+          strcmp(NJDNode_get_string(node), "ファクス") == 0 ||
           strcmp(NJDNode_get_string(node), "市外局番") == 0 ||
           strcmp(NJDNode_get_string(node), "局番") == 0)
          return 1;
-      if (strcmp(NJDNode_get_string(node), "。") == 0)
+      /* 「受け付け電話番号は、03・3355・1881」のように「電話」「番号」が別々に解析されても、隣り合う語を番号の見出しとして扱う */
+      if (strcmp(NJDNode_get_string(node), "番号") == 0 && node->prev != NULL &&
+          strcmp(NJDNode_get_string(node->prev), "電話") == 0)
+         return 1;
+      /* 「電話で100と200を足す」「電話料金は1.5円」は、番号の区切りに当たらない語で探索を終える */
+      if (number_digit(node) < 0 && !is_number_hyphen(node) &&
+          strcmp(NJDNode_get_pos_group3(node), "空白境界") != 0 &&
+          strcmp(NJDNode_get_string(node), "（") != 0 &&
+          strcmp(NJDNode_get_string(node), "）") != 0 &&
+          strcmp(NJDNode_get_string(node), "の") != 0 &&
+          strcmp(NJDNode_get_string(node), "は") != 0 &&
+          strcmp(NJDNode_get_pron(node), "、") != 0)
          break;
    }
    return 0;
 }
 
-static NJDNode *next_phone_group(NJDNode *end, int phone_context)
+static NJDNode *next_phone_group(NJDNode *end, int phone_context, int postal_context)
 {
    NJDNode *separator = end->next;
    if (separator == NULL)
       return NULL;
-   /* 「03(1234)5678」の括弧も番号のグループ境界になる */
-   if (is_number_hyphen(separator) || strcmp(NJDNode_get_string(separator), "（") == 0 ||
+   /* 「03(1234)5678」の括弧と、電話・郵便と確認できる「〒104・8011」の中点もグループ境界になる */
+   if (is_number_hyphen(separator) ||
+       ((phone_context || postal_context) && strcmp(NJDNode_get_string(separator), "・") == 0) ||
+       strcmp(NJDNode_get_string(separator), "（") == 0 ||
        strcmp(NJDNode_get_string(separator), "）") == 0 ||
        strcmp(NJDNode_get_pos_group3(separator), "空白境界") == 0)
       separator = separator->next;
@@ -965,7 +989,9 @@ static int has_identifier_context(NJDNode *start)
           strcmp(NJDNode_get_string(node), "クハ") == 0 ||
           strcmp(NJDNode_get_string(node), "キハ") == 0)
          return 1;
-      if (strcmp(NJDNode_get_string(node), "。") == 0)
+      /* 「型番3248の商品を9876円で購入」は、型番と後ろの数量の間にある語で探索を終える */
+      if (number_digit(node) < 0 && !is_number_hyphen(node) &&
+          strcmp(NJDNode_get_pos_group3(node), "空白境界") != 0)
          break;
    }
    return 0;
@@ -1043,6 +1069,20 @@ static int is_room_or_road_counter(NJDNode *counter)
    return counter != NULL &&
           (strcmp(NJDNode_get_string(counter), "号室") == 0 ||
            strcmp(NJDNode_get_string(counter), "号線") == 0);
+}
+
+static int is_identifier_counter(NJDNode *counter)
+{
+   /* 「02番」「01号室」「YDT-03型」は名前として使う番号で、数量を表す「03本」「01個」と区別する */
+   return is_room_or_road_counter(counter) ||
+          (counter != NULL &&
+           (strcmp(NJDNode_get_string(counter), "号機") == 0 ||
+            strcmp(NJDNode_get_string(counter), "号車") == 0 ||
+            strcmp(NJDNode_get_string(counter), "番線") == 0 ||
+            strcmp(NJDNode_get_string(counter), "便") == 0 ||
+            strcmp(NJDNode_get_string(counter), "型") == 0 ||
+            strcmp(NJDNode_get_string(counter), "番") == 0 ||
+            strcmp(NJDNode_get_string(counter), "番地") == 0));
 }
 
 static int positional_number_mora_size(NJDNode *start, NJDNode *end)
@@ -1143,6 +1183,10 @@ static void set_zero_padded_reading(NJDNode *start, NJDNode *end)
       if (strcmp(NJDNode_get_pron(node), "マル") == 0) {
          NJDNode_set_read(node, "ゼロ");
          NJDNode_set_pron(node, "ゼロ");
+         /* 「03本」の前半のように最後のゼロが単独の句になるときは、NHK アクセント辞典の「ゼ＼ロ」の核を使う */
+         if (node == end && NJDNode_get_chain_flag(node) == 0 && counter != NULL &&
+             strcmp(NJDNode_get_pos_group1(counter), NJD_SET_DIGIT_KAZU) == 0)
+            NJDNode_set_acc(node, 1);
       }
    }
    /* 「02番」は1モーラのニと前部末型の番を結合して「ゼロニ＼バン」にする */
@@ -1154,7 +1198,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
 {
    NJDNumberSequence *sequences = NULL;
    NJDNode *node, *start[3], *end[3], *next, *separator;
-   int size[3], groups, total, phone_context, first_group;
+   int size[3], groups, total, phone_context, postal_context, first_group;
 
    for (node = njd->head; node != NULL; node = node->next) {
       if (number_digit(node) < 0 || is_decimal_digit(node))
@@ -1162,17 +1206,33 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       start[0] = node;
       end[0] = number_end(node, &size[0]);
       phone_context = has_phone_context(node);
+      postal_context = has_postal_context(node);
       total = size[0];
       groups = 1;
-      while (groups < 3 && (next = next_phone_group(end[groups - 1], phone_context)) != NULL) {
+      while (groups < 3 && (next = next_phone_group(end[groups - 1], phone_context, postal_context)) != NULL) {
          start[groups] = next;
          end[groups] = number_end(next, &size[groups]);
          total += size[groups];
          groups++;
       }
+      /* 「一〇・五」「電話料金は1.5円」「1,234円」は通常の小数・桁区切り処理に任せ、文脈と桁数で確認できる「電話番号03・1234・5678」「〒104・8011」だけを番号として読む */
+      if (end[0]->next != NULL &&
+          (is_period(NJDNode_get_string(end[0]->next)) ||
+           is_comma(NJDNode_get_string(end[0]->next))) &&
+          !(groups == 3 && phone_context && (total == 10 || total == 11) &&
+            (end[2]->next == NULL ||
+             strcmp(NJDNode_get_pos_group2(end[2]->next), NJD_SET_DIGIT_JOSUUSHI) != 0)) &&
+          !(groups == 2 && postal_context && size[0] == 3 && size[1] == 4 &&
+            (end[1]->next == NULL ||
+             strcmp(NJDNode_get_pos_group2(end[1]->next), NJD_SET_DIGIT_JOSUUSHI) != 0))) {
+         node = end[0];
+         continue;
+      }
 
       /* 「03-1234-5678」「212-836-1725」は合計10〜11桁、「市外局番213の486ー2435」は文脈で電話と判定する */
       if (groups == 3 &&
+          (end[2]->next == NULL ||
+           strcmp(NJDNode_get_pos_group2(end[2]->next), NJD_SET_DIGIT_JOSUUSHI) != 0) &&
           (((total == 10 || total == 11) && !has_identifier_context(node)) || phone_context)) {
          for (groups = 0; groups < 3; groups++) {
             if (protect_number_sequence(&sequences, start[groups], end[groups]))
@@ -1180,7 +1240,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
             /* 「070ー3224」の長音記号を休止へ変え、「の」はそのまま発音する */
             for (separator = end[groups]->next;
                  groups < 2 && separator != start[groups + 1]; separator = separator->next) {
-               if (is_number_hyphen(separator)) {
+               if (is_number_hyphen(separator) || strcmp(NJDNode_get_string(separator), "・") == 0) {
                   NJDNode_set_pron(separator, "、");
                   NJDNode_set_mora_size(separator, 0);
                   NJDNode_set_chain_flag(separator, 0);
@@ -1194,8 +1254,11 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       /* 「07032245679」「電話番号110」は桁読み、「1234567890」や「電話回線は3本」の数量は位取りを保つ */
       if (groups == 1 &&
           (((size[0] == 10 || size[0] == 11) && number_digit(node) == 0) || phone_context) &&
+          (node->prev == NULL ||
+           strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0) &&
           (end[0]->next == NULL ||
-           strcmp(NJDNode_get_pos_group2(end[0]->next), NJD_SET_DIGIT_JOSUUSHI) != 0)) {
+           (strcmp(NJDNode_get_pos_group1(end[0]->next), NJD_SET_DIGIT_KAZU) != 0 &&
+            strcmp(NJDNode_get_pos_group2(end[0]->next), NJD_SET_DIGIT_JOSUUSHI) != 0))) {
          first_group = 0;
          if (number_digit(node) == 0 && size[0] >= 10) {
             /* 「08001234567」は0800-123-4567と区切るため、4桁の接頭辞を携帯番号より先に照合する */
@@ -1214,15 +1277,17 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
          if (protect_number_sequence(&sequences, node, end[0]))
             set_phone_digit_reading(node, end[0], first_group);
       }
-      /* 「〒123-4567」「123-4567」は3桁と4桁を別々に数え、ハイフンで休止する */
+      /* 「〒123-4567」「123-4567」は3桁と4桁を別々に数え、ハイフンで休止するが、助数詞が続く「価格は123-4567円」は通常の数量として扱う */
       else if (groups == 2 && size[0] == 3 && size[1] == 4 &&
+               (end[1]->next == NULL ||
+                strcmp(NJDNode_get_pos_group2(end[1]->next), NJD_SET_DIGIT_JOSUUSHI) != 0) &&
                (has_postal_context(node) || !has_identifier_context(node))) {
          for (groups = 0; groups < 2; groups++) {
             if (protect_number_sequence(&sequences, start[groups], end[groups]))
                set_phone_digit_reading(start[groups], end[groups], 0);
          }
          for (separator = end[0]->next; separator != start[1]; separator = separator->next) {
-            if (is_number_hyphen(separator)) {
+            if (is_number_hyphen(separator) || strcmp(NJDNode_get_string(separator), "・") == 0) {
                NJDNode_set_pron(separator, "、");
                NJDNode_set_mora_size(separator, 0);
                NJDNode_set_chain_flag(separator, 0);
@@ -1236,17 +1301,28 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
          if (protect_number_sequence(&sequences, node, end[0]))
             set_phone_digit_reading(node, end[0], 3);
       }
-      /* 「01号室」「02番」は電話・郵便の判定後に、0埋めされた番号としてゼロを読む */
-      else if (size[0] > 1 && number_digit(node) == 0 &&
-               (end[0]->next == NULL || !is_period(NJDNode_get_string(end[0]->next)))) {
-         if (protect_number_sequence(&sequences, node, end[0]))
-            set_zero_padded_reading(node, end[0]);
+      /* 「01号室」「02番」は全桁を番号として保ち、「03本」「01個」「04人」は末尾を通常の助数詞処理に渡して「サンボン」「イッコ」「ヨニン」を作る */
+      else if (size[0] > 1 && number_digit(node) == 0) {
+         next = end[0];
+         /* 「０５ 月」は暦の月として復元済みなので、助数詞の核を決めるまで全桁を保つ */
+         /* 「0730時」の末尾の0は助数詞の音便で変わらないので、元の桁の組み方を保つ */
+         if (end[0]->next != NULL &&
+             strcmp(NJDNode_get_pos_group2(end[0]->next), NJD_SET_DIGIT_JOSUUSHI) == 0 &&
+             strcmp(NJDNode_get_pos_group3(end[0]->next), "暦月") != 0 &&
+             !is_identifier_counter(end[0]->next) && number_digit(end[0]) > 0)
+            next = end[0]->prev;
+         if (protect_number_sequence(&sequences, node, next))
+            set_zero_padded_reading(node, next);
       }
       /* 「802号室」「国道409号線」は桁読み、「12号室」と位を明示した「十二号室」は位取りに残す */
       else if (is_written_digit_sequence(node, end[0]) ||
                (size[0] >= 3 && is_room_or_road_counter(end[0]->next) && number_digit(node) != 0 &&
                 (size[0] == 3 || !prefers_positional_number(node, end[0], size[0]))) ||
+               /* 「型番3248の商品を9876円で購入」の価格は位取りで読み、型番の文脈で読むのは助数詞のない数か番号の助数詞に限る */
                (size[0] >= 4 && number_digit(node) != 0 &&
+                (end[0]->next == NULL ||
+                 strcmp(NJDNode_get_pos_group2(end[0]->next), NJD_SET_DIGIT_JOSUUSHI) != 0 ||
+                 is_identifier_counter(end[0]->next)) &&
                 ((end[0]->next != NULL && strcmp(NJDNode_get_string(end[0]->next), "号機") == 0) ||
                  has_identifier_context(node)) && !prefers_positional_number(node, end[0], size[0]))) {
          if (protect_number_sequence(&sequences, node, end[0]))
