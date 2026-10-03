@@ -304,7 +304,7 @@ void njd_set_accent_type(NJD * njd)
          }
       }
 
-      /* 「十」で始まる数詞は、次の数に結合するときだけアクセント核を結合規則に委ねる */
+      /* アクセント句の先頭の「十」に数詞が続いて1つの句になるとき (「十二」など) は、「十」の核を外して句全体の核を結合規則で決める */
       if (strcmp(NJDNode_get_string(node), NJD_SET_ACCENT_TYPE_JYUU) == 0 &&
           NJDNode_get_chain_flag(node) != 1 && node->next != NULL &&
           NJDNode_get_chain_flag(node->next) == 1 &&
