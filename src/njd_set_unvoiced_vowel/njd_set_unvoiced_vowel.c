@@ -177,6 +177,19 @@ static int apply_unvoice_rule(const char *current, const char *next)
    if (next == NULL)
       return 0;
 
+#if defined(CHARSET_UTF_8)
+   /* 破擦音 ch/ts の後に摩擦音 sh/s/f/fy/h/hy が続く i/u は有声に保つ */
+   /* 後続拍の無声化も、この拍を有声とした状態で判定する */
+   if ((strcmp(current, "チ") == 0 || strcmp(current, "チュ") == 0 ||
+        strcmp(current, "ツ") == 0 || strcmp(current, "ツィ") == 0) &&
+       (strtopcmp(next, "サ") > 0 || strtopcmp(next, "シ") > 0 ||
+        strtopcmp(next, "ス") > 0 || strtopcmp(next, "セ") > 0 ||
+        strtopcmp(next, "ソ") > 0 || strtopcmp(next, "ハ") > 0 ||
+        strtopcmp(next, "ヒ") > 0 || strtopcmp(next, "フ") > 0 ||
+        strtopcmp(next, "ヘ") > 0 || strtopcmp(next, "ホ") > 0))
+      return 0;
+#endif
+
    for (i = 0; njd_set_unvoiced_vowel_candidate_list1[i] != NULL; i++) {
       if (strcmp(current, njd_set_unvoiced_vowel_candidate_list1[i]) == 0) {
          for (j = 0; njd_set_unvoiced_vowel_next_mora_list1[j] != NULL; j++)
