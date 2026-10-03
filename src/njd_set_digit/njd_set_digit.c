@@ -1048,6 +1048,17 @@ static void set_phone_digit_reading(NJDNode *start, NJDNode *end, int first_grou
 static int is_written_digit_sequence(NJDNode *start, NJDNode *end)
 {
    NJDNode *node, *following = end->next;
+   int i, has_zero = 0;
+   for (node = start; node != end->next; node = node->next)
+      if (strcmp(NJDNode_get_string(node), "〇") == 0)
+         has_zero = 1;
+   /* 「二〇万円」「一二〇万円」は「〇」を含み、百以上の位が続くので「ニジューマンエン」「ヒャクニジューマンエン」と数量として読む */
+   /* 「〇」のない漢数字列は概数を表すことがあるため、この数量への変換の対象から外す */
+   if (has_zero && following != NULL &&
+       strcmp(NJDNode_get_pos_group1(following), NJD_SET_DIGIT_KAZU) == 0)
+      for (i = 1; njd_set_digit_rule_numeral_list5[i] != NULL; i++)
+         if (strcmp(NJDNode_get_string(following), njd_set_digit_rule_numeral_list5[i]) == 0)
+            return 0;
    /* 「一九九五年」「一一七一円」の数量は位取りを保ち、「一二号室」「八〇二号室」は番号の表記を優先する */
    if (following != NULL && strcmp(NJDNode_get_pos_group2(following), NJD_SET_DIGIT_JOSUUSHI) == 0 &&
        strcmp(NJDNode_get_string(following), "号室") != 0 &&
