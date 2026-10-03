@@ -238,7 +238,15 @@ void njd_set_accent_type(NJD * njd)
                  strcmp(NJDNode_get_string(node->prev), NJD_SET_ACCENT_TYPE_SUU) == 0)) {
                NJDNode_set_acc(node->prev, 1);
             } else {
-               NJDNode_set_acc(node->prev, 1);
+               /* 「五十」「六十」「八十」は「十」の1拍目、「七十」は「七」の2拍目にアクセント核を置く */
+               if (strcmp(NJDNode_get_string(node->prev), NJD_SET_ACCENT_TYPE_GO) == 0 ||
+                   strcmp(NJDNode_get_string(node->prev), NJD_SET_ACCENT_TYPE_ROKU) == 0 ||
+                   strcmp(NJDNode_get_string(node->prev), NJD_SET_ACCENT_TYPE_HACHI) == 0)
+                  NJDNode_set_acc(node->prev, NJDNode_get_mora_size(node->prev) + 1);
+               else if (strcmp(NJDNode_get_string(node->prev), NJD_SET_ACCENT_TYPE_NANA) == 0)
+                  NJDNode_set_acc(node->prev, NJDNode_get_mora_size(node->prev));
+               else
+                  NJDNode_set_acc(node->prev, 1);
             }
             if (NJDNode_get_string(node->prev) != NULL &&
                 (strcmp(NJDNode_get_string(node->prev), NJD_SET_ACCENT_TYPE_GO) == 0 ||
@@ -296,8 +304,10 @@ void njd_set_accent_type(NJD * njd)
          }
       }
 
+      /* 「十」で始まる数詞は、次の数に結合するときだけアクセント核を結合規則に委ねる */
       if (strcmp(NJDNode_get_string(node), NJD_SET_ACCENT_TYPE_JYUU) == 0 &&
           NJDNode_get_chain_flag(node) != 1 && node->next != NULL &&
+          NJDNode_get_chain_flag(node->next) == 1 &&
           strcmp(NJDNode_get_pos_group1(node->next), NJD_SET_ACCENT_TYPE_KAZU) == 0) {
          NJDNode_set_acc(node, 0);
       }

@@ -519,6 +519,177 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
    }
 }
 
+static void set_digit_accent_rules(NJD * njd)
+{
+   NJDNode *node;
+   NJDNode *digit_node;
+   NJDNode *counter;
+   NJDNode *tail;
+   int digit;
+   int counter_mora_size;
+   int is_compound;
+   int is_short_counter;
+
+   /* 数詞の末尾に合わせて、助数詞との結合後のアクセント核を決める */
+   for (counter = njd->head->next; counter != NULL; counter = counter->next) {
+      node = counter->prev;
+      if (strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) != 0 ||
+          (strcmp(NJDNode_get_pos_group2(counter), NJD_SET_DIGIT_JOSUUSHI) != 0 &&
+           strcmp(NJDNode_get_pos_group1(counter), NJD_SET_DIGIT_FUKUSHIKANOU) != 0))
+         continue;
+      digit = get_digit(node, 0);
+      is_compound = node->prev != NULL &&
+         strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0;
+
+      /* 「個」は数詞の末尾にアクセント核を置く前部末型で結合する */
+      if (strcmp(NJDNode_get_string(counter), "個") == 0)
+         NJDNode_set_chain_rule(counter, "C3");
+
+      /* 「十二人」は前部末型、「四人」「五人」「九人」の短い読みは後部のアクセント核を保つ */
+      if (strcmp(NJDNode_get_string(counter), NJD_SET_DIGIT_NIN) == 0 &&
+          ((is_compound && !(NJDNode_get_mora_size(node) == 1 &&
+                            (digit == 4 || digit == 5 || digit == 9))) ||
+           (!is_compound && (digit == 6 || digit == 7 || digit == 8 ||
+                            (digit == 9 && NJDNode_get_mora_size(node) == 2)))))
+         NJDNode_set_chain_rule(counter, "C3");
+
+      /* 前部末型のアクセント核が撥音・長音・促音に来る数詞では、1拍前に置く */
+      if (strcmp(NJDNode_get_chain_rule(counter), "C3") == 0 &&
+          (digit == 3 || ((digit == 4 || digit == 9) && NJDNode_get_mora_size(node) == 2) ||
+           strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0 ||
+           strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[2]) == 0))
+         NJDNode_set_chain_rule(counter, "F4@-1");
+
+      /* 「十一日」「十二日」などは尾高型で結合する */
+      if (strcmp(NJDNode_get_string(counter), NJD_SET_DIGIT_NICHI) == 0 && is_compound &&
+          (digit == 1 || digit == 2 || digit == 6 || digit == 7 || digit == 8))
+         NJDNode_set_chain_rule(counter, "F4@2");
+
+      /* 「円」との結合や、「万」に短い助数詞が続く場合に、表の平板型を適用する */
+      if ((strcmp(NJDNode_get_string(counter), "円") == 0 &&
+           ((!is_compound && (digit == 1 || digit == 2 || digit == 3 || digit == 6 || digit == 8 ||
+                              strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0)) ||
+            strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[1]) == 0 ||
+            strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[2]) == 0)) ||
+          (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[3]) == 0 &&
+           NJDNode_get_mora_size(counter) <= 2 &&
+           strcmp(NJDNode_get_string(counter), "ウォン") != 0 &&
+           strcmp(NJDNode_get_string(counter), "ギガ") != 0))
+         NJDNode_set_chain_rule(counter, "F5");
+
+      /* 「五」に続く「本」「枚」「台」「年」などは、数詞の桁にかかわらず後部を平板型にする */
+      if (digit == 5 && (strcmp(NJDNode_get_string(counter), "本") == 0 ||
+                        strcmp(NJDNode_get_string(counter), "枚") == 0 ||
+                        strcmp(NJDNode_get_string(counter), "台") == 0 ||
+                        strcmp(NJDNode_get_string(counter), "代") == 0 ||
+                        strcmp(NJDNode_get_string(counter), "番") == 0 ||
+                        strcmp(NJDNode_get_string(counter), "年") == 0))
+         NJDNode_set_chain_rule(counter, "F5");
+      if (strcmp(NJDNode_get_string(counter), "年") == 0 &&
+          ((NJDNode_get_mora_size(node) == 1 && (digit == 4 || digit == 9)) ||
+           (!is_compound && digit == 3)))
+         NJDNode_set_chain_rule(counter, "F5");
+
+      /* 「二十回」などの10の倍数と「千回」は、助数詞より前にアクセント核を置く */
+      if (strcmp(NJDNode_get_string(counter), "回") == 0 &&
+          (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[2]) == 0 ||
+           (is_compound && strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0)))
+         NJDNode_set_chain_rule(counter, "F4@-1");
+
+      /* 「日目」は尾高型、「人前」は平板型で、分かれた接尾辞まで含めて結合する */
+      if (counter->next != NULL && NJDNode_get_chain_flag(counter->next) != 0 &&
+          strcmp(NJDNode_get_pos_group1(counter->next), "接尾") == 0) {
+         if (strcmp(NJDNode_get_string(counter), NJD_SET_DIGIT_NICHI) == 0 &&
+             strcmp(NJDNode_get_string(counter->next), "目") == 0)
+            NJDNode_set_chain_rule(counter->next, "F4@1");
+         if (strcmp(NJDNode_get_string(counter), NJD_SET_DIGIT_NIN) == 0 &&
+             strcmp(NJDNode_get_string(counter->next), "前") == 0)
+            NJDNode_set_chain_rule(counter->next, "F5");
+      }
+   }
+
+   /* NHK アクセント辞典の付録の数詞と助数詞の表では、11〜19の「十」と一の位は通常1つのアクセント句になる */
+   for (node = njd->head; node != NULL && node->next != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) != 0 ||
+          (node->prev != NULL &&
+           strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0))
+         continue;
+      digit_node = node->next;
+      digit = get_digit(digit_node, 0);
+      if (digit < 1 || digit > 9)
+         continue;
+      counter = digit_node->next;
+      if (counter != NULL &&
+          (strcmp(NJDNode_get_pos(counter), NJD_SET_DIGIT_MEISHI) != 0 ||
+           (strcmp(NJDNode_get_pos_group1(counter), NJD_SET_DIGIT_KAZU) == 0 &&
+            search_numerative_class(njd_set_digit_rule_numeral_list5, counter) == 0)))
+         counter = NULL;
+
+      /* 「時半」「時間」のように助数詞が複数ノードに分かれる場合も拍数を合計する */
+      counter_mora_size = 0;
+      for (tail = counter; tail != NULL; tail = tail->next) {
+         if (tail != counter &&
+             (NJDNode_get_chain_flag(tail) == 0 ||
+              strcmp(NJDNode_get_pos_group1(tail), "接尾") != 0))
+            break;
+         counter_mora_size += NJDNode_get_mora_size(tail);
+      }
+      is_short_counter = counter != NULL && counter_mora_size <= 2;
+
+      /* 「球」「週」などの11〜19は平板型、「機種」「地区」は助数詞のアクセント核を保つ */
+      if (counter != NULL) {
+         if (strcmp(NJDNode_get_string(counter), "球") == 0 ||
+             strcmp(NJDNode_get_string(counter), "周") == 0 ||
+             strcmp(NJDNode_get_string(counter), "週") == 0 ||
+             strcmp(NJDNode_get_string(counter), "戦") == 0 ||
+             strcmp(NJDNode_get_string(counter), "層") == 0 ||
+             strcmp(NJDNode_get_string(counter), "倍") == 0 ||
+             strcmp(NJDNode_get_string(counter), "場所") == 0)
+            NJDNode_set_chain_rule(counter, "C4");
+         if (strcmp(NJDNode_get_string(counter), "機種") == 0 ||
+             strcmp(NJDNode_get_string(counter), "地区") == 0)
+            NJDNode_set_chain_rule(counter, "C1");
+      }
+
+      /* 同じ拍数でも語ごとに結合型が異なる短い助数詞は、表にある1つのアクセント句の型を使う */
+      if (is_short_counter &&
+          (strcmp(NJDNode_get_string(counter), "階") == 0 ||
+           strcmp(NJDNode_get_string(counter), "級") == 0 ||
+           strcmp(NJDNode_get_string(counter), "型") == 0 ||
+           strcmp(NJDNode_get_string(counter), "巡") == 0 ||
+           strcmp(NJDNode_get_string(counter), "勝") == 0 ||
+           strcmp(NJDNode_get_string(counter), "乗") == 0 ||
+           strcmp(NJDNode_get_string(counter), "敗") == 0 ||
+           strcmp(NJDNode_get_string(counter), "ウォン") == 0 ||
+           strcmp(NJDNode_get_string(counter), "ギガ") == 0 ||
+           strcmp(NJDNode_get_string(counter), "か所") == 0 ||
+           strcmp(NJDNode_get_string(counter), "機種") == 0 ||
+           strcmp(NJDNode_get_string(counter), "地区") == 0 ||
+           strcmp(NJDNode_get_string(counter), "球") == 0 ||
+           strcmp(NJDNode_get_string(counter), "周") == 0 ||
+           strcmp(NJDNode_get_string(counter), "週") == 0 ||
+           strcmp(NJDNode_get_string(counter), "戦") == 0 ||
+           strcmp(NJDNode_get_string(counter), "層") == 0 ||
+           strcmp(NJDNode_get_string(counter), "倍") == 0 ||
+           strcmp(NJDNode_get_string(counter), "場所") == 0)) {
+         is_short_counter = 0;
+      }
+
+      /* 一の位を「ゴ」「ヨ」「ク」と読む数に短い助数詞が続くときは、NHK アクセント辞典で最初に掲載されている2つのアクセント句の形を使う */
+      if (is_short_counter && NJDNode_get_mora_size(digit_node) == 1 &&
+          (digit == 4 || digit == 5 || digit == 9)) {
+         NJDNode_set_chain_flag(digit_node, 0);
+         NJDNode_set_acc(node, 1);
+      } else {
+         NJDNode_set_chain_flag(digit_node, 1);
+         if (counter == NULL && (digit == 3 || digit == 5))
+            NJDNode_set_chain_rule(digit_node, "F4@-1");
+         else
+            NJDNode_set_chain_rule(digit_node, "C1");
+      }
+   }
+}
+
 void njd_set_digit(NJD * njd)
 {
    int i, j;
@@ -747,8 +918,15 @@ void njd_set_digit(NJD * njd)
          if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0
              && strcmp(NJDNode_get_string(node->next), NJD_SET_DIGIT_FOUR) == 0) {
             if (strcmp(NJDNode_get_string(node->next->next), NJD_SET_DIGIT_NICHI) == 0) {
-               NJDNode_load(node, NJD_SET_DIGIT_JUYOKKA);
-               NJDNode_set_pron(node->next, NULL);
+               /* 「十四日」は「ジュ＼ー・ヨッカ」の2つのアクセント句、「十四日目」は尾高型の1つのアクセント句にする */
+               if (node->next->next->next != NULL &&
+                   strcmp(NJDNode_get_string(node->next->next->next), "目") == 0) {
+                  NJDNode_load(node, NJD_SET_DIGIT_JUYOKKA);
+                  NJDNode_set_pron(node->next, NULL);
+                  NJDNode_set_chain_rule(node->next->next->next, "F4@1");
+               } else {
+                  NJDNode_load(node->next, NJD_SET_DITIT_YOKKA);
+               }
                NJDNode_set_pron(node->next->next, NULL);
             } else if (strcmp(NJDNode_get_string(node->next->next), NJD_SET_DIGIT_NICHIKAN) == 0) {
                NJDNode_load(node, NJD_SET_DIGIT_JUYOKKAKAN);
@@ -787,6 +965,8 @@ void njd_set_digit(NJD * njd)
    NJD_remove_silent_node(njd);
    if (njd->head == NULL)
       return;
+
+   set_digit_accent_rules(njd);
 }
 
 NJD_SET_DIGIT_C_END;
