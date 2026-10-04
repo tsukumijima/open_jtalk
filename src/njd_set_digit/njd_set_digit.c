@@ -1266,6 +1266,34 @@ static void set_zero_padded_reading(NJDNode *start, NJDNode *end)
       NJDNode_set_chain_rule(counter, "C3");
 }
 
+static NJDNode *restore_grouped_number_commas(NJDNode *start, NJDNode *end, int size)
+{
+   NJDNode *node, *group_end = end;
+   int group_size;
+
+   /* 「1,050円」「1,234,567」は先頭が1〜3桁、カンマの後が3桁の数として既存の位取り処理へ渡す */
+   if (size > 3 || (start->prev != NULL && is_comma(NJDNode_get_string(start->prev))))
+      return NULL;
+   while (group_end->next != NULL && is_comma(NJDNode_get_string(group_end->next))) {
+      node = group_end->next->next;
+      if (number_digit(node) < 0)
+         return NULL;
+      group_end = number_end(node, &group_size);
+      if (group_size != 3)
+         return NULL;
+   }
+   if (group_end == end)
+      return NULL;
+   /* 「1,050.5円」のカンマは発音設定で読点になるため、整数部の数詞へ戻して位取りし、列挙の「1,2」は休止を保つ */
+   for (node = start; node != group_end; node = node->next) {
+      if (is_comma(NJDNode_get_string(node))) {
+         NJDNode_set_pos(node, "名詞");
+         NJDNode_set_pos_group1(node, NJD_SET_DIGIT_KAZU);
+      }
+   }
+   return group_end;
+}
+
 static NJDNumberSequence *prepare_number_sequences(NJD *njd)
 {
    NJDNumberSequence *sequences = NULL;
@@ -1277,6 +1305,12 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
          continue;
       start[0] = node;
       end[0] = number_end(node, &size[0]);
+      next = restore_grouped_number_commas(node, end[0], size[0]);
+      /* 「12,005人」の「005」は独立したゼロ埋め番号ではなく、数全体の下3桁として読む */
+      if (next != NULL) {
+         node = next;
+         continue;
+      }
       phone_context = has_phone_context(node);
       postal_context = has_postal_context(node);
       total = size[0];
@@ -1377,12 +1411,15 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       /* 「01号室」「02番」は全桁を番号として保ち、「03本」「01個」「04人」は末尾を通常の助数詞処理に渡して「サンボン」「イッコ」「ヨニン」を作る */
       else if (size[0] > 1 && number_digit(node) == 0) {
          next = end[0];
+         separator = end[0]->next;
+         /* 「03千円」「08百円」は末尾の数字を位の数詞と結合し、「ゼロサンゼンエン」「ゼロハッピャクエン」と読む */
          /* 「０５ 月」は暦の月として復元済みなので、助数詞の核を決めるまで全桁を保つ */
          /* 「0730時」の末尾の0は助数詞の音便で変わらないので、元の桁の組み方を保つ */
-         if (end[0]->next != NULL &&
-             strcmp(NJDNode_get_pos_group2(end[0]->next), NJD_SET_DIGIT_JOSUUSHI) == 0 &&
-             strcmp(NJDNode_get_pos_group3(end[0]->next), "暦月") != 0 &&
-             !is_identifier_counter(end[0]->next) && number_digit(end[0]) > 0)
+         if (separator != NULL &&
+             (strcmp(NJDNode_get_pos_group2(separator), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
+              strcmp(NJDNode_get_pos_group1(separator), NJD_SET_DIGIT_KAZU) == 0) &&
+             strcmp(NJDNode_get_pos_group3(separator), "暦月") != 0 &&
+             !is_identifier_counter(separator) && number_digit(end[0]) > 0)
             next = end[0]->prev;
          if (protect_number_sequence(&sequences, node, next))
             set_zero_padded_reading(node, next);
@@ -1539,42 +1576,26 @@ static int is_aviation_word(NJDNode *node)
 static void set_flight_number_accent(NJD *njd)
 {
    NJDNode *counter, *node, *start;
-   int distance, is_flight, is_quantity;
+   int is_flight;
    for (counter = njd->head; counter != NULL; counter = counter->next) {
       if (strcmp(NJDNode_get_string(counter), "便") != 0 || counter->prev == NULL ||
           strcmp(NJDNode_get_pos_group1(counter->prev), NJD_SET_DIGIT_KAZU) != 0)
          continue;
-      is_flight = 0;
-      is_quantity = 0;
-      /* 「JAL3便」「飛行機の226便」「226便に搭乗」は便名と判定し、「荷物を3便に分ける」は数量のままにする */
-      for (node = counter->prev, distance = 0; node != NULL && distance < 16;
-           node = node->prev, distance++) {
-         if (is_aviation_word(node))
-            is_flight = 1;
-         /* 「JALは一日3便」「航空会社は合計3便」の運航本数は、便名の平板化から外す */
-         if (strcmp(NJDNode_get_string(node), "日") == 0 ||
-             strcmp(NJDNode_get_string(node), "毎日") == 0 ||
-             strcmp(NJDNode_get_string(node), "一日") == 0 ||
-             strcmp(NJDNode_get_string(node), "合計") == 0 ||
-             strcmp(NJDNode_get_string(node), "計") == 0 ||
-             strcmp(NJDNode_get_string(node), "往復") == 0)
-            is_quantity = 1;
-         if (strcmp(NJDNode_get_pron(node), "、") == 0)
-            break;
-      }
-      for (node = counter->next, distance = 0; node != NULL && distance < 8;
-           node = node->next, distance++) {
-         if (is_aviation_word(node))
-            is_flight = 1;
-         if (strcmp(NJDNode_get_pron(node), "、") == 0)
-            break;
-      }
-      /* NHK アクセント辞典の便名の推奨型に合わせ、「サンビン」は平板、複数句の「226便」は最後の「ロクビン」を平板にする */
       start = counter->prev;
       while (start->prev != NULL && strcmp(NJDNode_get_pos_group1(start->prev), NJD_SET_DIGIT_KAZU) == 0)
          start = start->prev;
-      /* 「一日に乗るJAL226便」のように会社名が番号へ直接付く場合は、便名を優先する */
-      if (is_flight && (!is_quantity || (start->prev != NULL && is_aviation_word(start->prev)))) {
+      /* 「JAL3便」「飛行機の226便」は番号に直接付く航空会社名や「飛行機」で便名と判定し、「航空会社は3便を欠航した」は運航する便の本数として読む */
+      node = start->prev;
+      if (node != NULL && strcmp(NJDNode_get_string(node), "の") == 0)
+         node = node->prev;
+      is_flight = node != NULL && is_aviation_word(node);
+      /* 「3便に搭乗する」は搭乗する便の番号とし、「3便を増便する」「3便を運航する」の本数は通常の核を保つ */
+      node = counter->next;
+      if (node != NULL && strcmp(NJDNode_get_string(node), "に") == 0 && node->next != NULL &&
+          strcmp(NJDNode_get_string(node->next), "搭乗") == 0)
+         is_flight = 1;
+      /* NHK アクセント辞典の便名の推奨型に合わせ、「サンビン」は平板、複数句の「226便」は最後の「ロクビン」を平板にする */
+      if (is_flight) {
          NJDNode_set_chain_flag(counter, 1);
          NJDNode_set_chain_rule(counter, "C4");
          NJDNode_set_acc(counter, 0);
