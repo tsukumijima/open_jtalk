@@ -976,14 +976,8 @@ static int has_phone_context(NJDNode *start, NJDNode *end)
       node = node->next;
       while (node != NULL && strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0)
          node = node->next;
-      if (node != NULL && strcmp(NJDNode_get_string(node), "電話") == 0) {
-         /* 「100に電話料金を足す」は数量の「ヒャク」で読み、「119に電話する」「119に電話を」は発信先として桁読みする */
-         node = node->next;
-         while (node != NULL && strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0)
-            node = node->next;
-         if (node == NULL || strcmp(NJDNode_get_pos(node), "名詞") != 0)
-            return 1;
-      }
+      if (node != NULL && strcmp(NJDNode_get_string(node), "電話") == 0)
+         return 1;
    }
    /* 「市外局番213の、486ー2435」「電話 03 1234 5678」は区切りと数字をたどり、電話番号の最後の組まで文脈を保つ */
    for (node = start->prev; node != NULL && distance < 16; node = node->prev, distance++) {
