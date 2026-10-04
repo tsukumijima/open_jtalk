@@ -483,9 +483,16 @@ static void set_restored_month_accents(NJD *njd)
       if (strcmp(NJDNode_get_pos_group3(node), "暦月") != 0)
          continue;
       month = calendar_month_number(node);
+      /* 空白付きの「０４ 月」「０７ 月」「０９ 月」も「シ」「シチ」「ク」と読み、ゼロを含むアクセント句を保つ */
+      get_digit(node->prev, 1);
+      convert_digit_pron(njd_set_digit_rule_conv_table1e, node->prev);
       /* NHK アクセント辞典に従い、「1 月」「2 月」は尾高型にし、「3 月」「5 月」「9 月」は「サ＼ンガツ」「ゴ＼ガツ」「ク＼ガツ」と読む */
-      NJDNode_set_chain_rule(node, month == 3 ? "F4@-1" :
-                            (month == 5 || month == 9 ? "F4@0" : "F4@2"));
+      /* 「01 月」「09 月」はアクセント核を保ち、空白なしと同じ「ゼロイ＼チガツ」「ゼロク＼ガツ」と読む */
+      if (node->prev->prev != NULL && get_digit(node->prev->prev, 0) == 0)
+         NJDNode_set_chain_rule(node, "C5");
+      else
+         NJDNode_set_chain_rule(node, month == 3 ? "F4@-1" :
+                               (month == 5 || month == 9 ? "F4@0" : "F4@2"));
       NJDNode_set_pos_group3(node, "*");
    }
 }
@@ -498,8 +505,10 @@ static int is_decimal_digit(NJDNode * digit)
       digit = digit->prev;
    if (digit == NULL)
       return 0;
+   /* 「・・一日」の文の区切りは小数点とせず、「1.5日」のように整数部の数詞に続く点だけを小数点とする */
    if (is_period(NJDNode_get_string(digit)))
-      return 1;
+      return digit->prev != NULL &&
+             strcmp(NJDNode_get_pos_group1(digit->prev), NJD_SET_DIGIT_KAZU) == 0;
    /* 漢字で書いた小数点は、「数詞＋点」の形と、辞書に1語で載っている「一点」の両方を見る */
    if (strcmp(NJDNode_get_string(digit), "一点") == 0 &&
        strcmp(NJDNode_get_read(digit), "イッテン") == 0)
@@ -509,6 +518,50 @@ static int is_decimal_digit(NJDNode * digit)
       integer = integer->prev;
    return strcmp(NJDNode_get_string(digit), "点") == 0 && integer != NULL &&
           strcmp(NJDNode_get_pos_group1(integer), NJD_SET_DIGIT_KAZU) == 0;
+}
+
+static int is_calendar_day_enumeration(NJDNode *digit)
+{
+   NJDNode *month = digit;
+   const char *str;
+   int i, length;
+
+   /* 「5月1．2日」「5 月 1．2 日」は月の直後の日付を小数で表すことはないため、列挙した日を「フツカ」などの和語で読む */
+   if (digit->next == NULL || strcmp(NJDNode_get_string(digit->next), NJD_SET_DIGIT_NICHI) != 0)
+      return 0;
+   while (month != NULL && strcmp(NJDNode_get_pos_group1(month), NJD_SET_DIGIT_KAZU) == 0)
+      month = month->prev;
+   if (month == NULL || !is_period(NJDNode_get_string(month)))
+      return 0;
+   month = month->prev;
+   if (month == NULL || strcmp(NJDNode_get_pos_group1(month), NJD_SET_DIGIT_KAZU) != 0)
+      return 0;
+   while (month != NULL && strcmp(NJDNode_get_pos_group1(month), NJD_SET_DIGIT_KAZU) == 0)
+      month = month->prev;
+   if (month == NULL)
+      return 0;
+   str = NJDNode_get_string(month);
+   /* 「5 月」のように月が別の形態素に分かれる場合は直前の数詞も調べ、「月1.5日」だけの表記と区別する */
+   if (strcmp(str, NJD_SET_DIGIT_GATSU) == 0)
+      return month->prev != NULL &&
+             (strcmp(NJDNode_get_pos_group3(month), "暦月") == 0 ||
+              calendar_month_number(month) != 0);
+   /* 辞書に1語で登録された「５月」「１２月」も数詞と月の組として扱い、「今月1.5日働く」の日数は小数のまま読む */
+   while (*str != '\0') {
+      length = strtopcmp(str, NJD_SET_DIGIT_TEN);
+      if (length < 0)
+         for (i = 0; njd_set_digit_rule_numeral_list1[i] != NULL; i += 3) {
+            length = strtopcmp(str, njd_set_digit_rule_numeral_list1[i]);
+            if (length > 0)
+               break;
+         }
+      if (length <= 0)
+         return 0;
+      str += length;
+      if (strcmp(str, NJD_SET_DIGIT_GATSU) == 0)
+         return 1;
+   }
+   return 0;
 }
 
 static int uses_native_one_two(NJDNode * counter)
@@ -1057,6 +1110,9 @@ static int is_written_digit_sequence(NJDNode *start, NJDNode *end)
    for (node = start; node != end->next; node = node->next)
       if (strcmp(NJDNode_get_string(node), "〇") == 0)
          has_zero = 1;
+   /* 「二〇 万円」の無音の空白境界を読み飛ばし、「二〇万円」と同じく「ニジューマンエン」と読む */
+   while (following != NULL && strcmp(NJDNode_get_pos_group3(following), "空白境界") == 0)
+      following = following->next;
    /* 「二〇万円」「一二〇万円」は「〇」を含み、百以上の位が続くので「ニジューマンエン」「ヒャクニジューマンエン」と数量として読む */
    /* 「〇」のない漢数字列は概数を表すことがあるため、この数量への変換の対象から外す */
    if (has_zero && following != NULL &&
@@ -1214,7 +1270,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
 {
    NJDNumberSequence *sequences = NULL;
    NJDNode *node, *start[3], *end[3], *next, *separator;
-   int size[3], groups, total, phone_context, postal_context, first_group;
+   int size[3], groups, total, phone_context, postal_context, first_group, has_quantity_suffix;
 
    for (node = njd->head; node != NULL; node = node->next) {
       if (number_digit(node) < 0 || is_decimal_digit(node))
@@ -1231,24 +1287,28 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
          total += size[groups];
          groups++;
       }
+      /* 「123-4567.89円」「〒印を1234567枚印刷する」は、小数点や助数詞が続く数量として通常の数詞処理へ渡す */
+      next = end[groups - 1]->next;
+      /* 「☎0967(44)0336 1泊」の「1泊」は空白で区切られた別の数量として、電話番号の桁読みを保つ */
+      while (next != NULL && strcmp(NJDNode_get_pos_group3(next), "空白境界") == 0 &&
+             number_digit(next->next) < 0)
+         next = next->next;
+      has_quantity_suffix = next != NULL &&
+         (strcmp(NJDNode_get_pos_group1(next), NJD_SET_DIGIT_KAZU) == 0 ||
+          strcmp(NJDNode_get_pos_group2(next), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
+          is_period(NJDNode_get_string(next)) || is_comma(NJDNode_get_string(next)));
       /* 「一〇・五」「電話料金は1.5円」「1,234円」は通常の小数・桁区切り処理に任せ、文脈と桁数で確認できる「電話番号03・1234・5678」「〒104・8011」だけを番号として読む */
       if (end[0]->next != NULL &&
           (is_period(NJDNode_get_string(end[0]->next)) ||
            is_comma(NJDNode_get_string(end[0]->next))) &&
-          !(groups == 3 && phone_context && (total == 10 || total == 11) &&
-            (end[2]->next == NULL ||
-             strcmp(NJDNode_get_pos_group2(end[2]->next), NJD_SET_DIGIT_JOSUUSHI) != 0)) &&
-          !(groups == 2 && postal_context && size[0] == 3 && size[1] == 4 &&
-            (end[1]->next == NULL ||
-             strcmp(NJDNode_get_pos_group2(end[1]->next), NJD_SET_DIGIT_JOSUUSHI) != 0))) {
+          !(groups == 3 && phone_context && (total == 10 || total == 11) && !has_quantity_suffix) &&
+          !(groups == 2 && postal_context && size[0] == 3 && size[1] == 4 && !has_quantity_suffix)) {
          node = end[0];
          continue;
       }
 
       /* 「03-1234-5678」「212-836-1725」は合計10〜11桁、「市外局番213の486ー2435」は文脈で電話と判定する */
-      if (groups == 3 &&
-          (end[2]->next == NULL ||
-           strcmp(NJDNode_get_pos_group2(end[2]->next), NJD_SET_DIGIT_JOSUUSHI) != 0) &&
+      if (groups == 3 && !has_quantity_suffix &&
           (((total == 10 || total == 11) && !has_identifier_context(node)) || phone_context)) {
          for (groups = 0; groups < 3; groups++) {
             if (protect_number_sequence(&sequences, start[groups], end[groups]))
@@ -1272,9 +1332,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
           (((size[0] == 10 || size[0] == 11) && number_digit(node) == 0) || phone_context) &&
           (node->prev == NULL ||
            strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0) &&
-          (end[0]->next == NULL ||
-           (strcmp(NJDNode_get_pos_group1(end[0]->next), NJD_SET_DIGIT_KAZU) != 0 &&
-            strcmp(NJDNode_get_pos_group2(end[0]->next), NJD_SET_DIGIT_JOSUUSHI) != 0))) {
+          !has_quantity_suffix) {
          first_group = 0;
          if (number_digit(node) == 0 && size[0] >= 10) {
             /* 「08001234567」は0800-123-4567と区切るため、4桁の接頭辞を携帯番号より先に照合する */
@@ -1295,8 +1353,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       }
       /* 「〒123-4567」「123-4567」は3桁と4桁を別々に数え、ハイフンで休止するが、助数詞が続く「価格は123-4567円」は通常の数量として扱う */
       else if (groups == 2 && size[0] == 3 && size[1] == 4 &&
-               (end[1]->next == NULL ||
-                strcmp(NJDNode_get_pos_group2(end[1]->next), NJD_SET_DIGIT_JOSUUSHI) != 0) &&
+               !has_quantity_suffix &&
                (has_postal_context(node) || !has_identifier_context(node))) {
          for (groups = 0; groups < 2; groups++) {
             if (protect_number_sequence(&sequences, start[groups], end[groups]))
@@ -1313,7 +1370,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
          continue;
       }
       /* 「郵便番号1234567」は休止のない3-4の組として桁読みする */
-      else if (groups == 1 && size[0] == 7 && has_postal_context(node)) {
+      else if (groups == 1 && size[0] == 7 && postal_context && !has_quantity_suffix) {
          if (protect_number_sequence(&sequences, node, end[0]))
             set_phone_digit_reading(node, end[0], 3);
       }
@@ -1801,6 +1858,10 @@ void njd_set_digit(NJD * njd)
       if (node->next != NULL &&
           strcmp(NJDNode_get_string(node->next), "*") != 0 &&
           strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0 &&
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+          /* 「1.5日」「0.2 人」の小数部は整数用の「イツカ」「フタリ」に変えず、「ゴニチ」「ニニン」と読む */
+          (is_decimal_digit(node) == 0 || is_calendar_day_enumeration(node)) &&
+#endif
           (node->prev == NULL
            || strcmp(NJDNode_get_pos(node->prev), NJD_SET_DIGIT_KIGOU) == 0
            || strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0)
