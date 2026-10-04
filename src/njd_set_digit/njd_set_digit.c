@@ -231,8 +231,8 @@ static void convert_digit_sequence_for_non_numerical_reading(NJDNode * start, NJ
       return;
 
    for (node = start, size = 0; node != end->next; node = node->next) {
-      if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_ZERO1) == 0
-          || strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_ZERO2) == 0) {
+      /* 「〇」「０」に加えて「零」も、小数点以下の桁では「ゼロ」と読む */
+      if (get_digit(node, 0) == 0) {
          NJDNode_set_pron(node, NJD_SET_DIGIT_ZERO_AFTER_DP);
          NJDNode_set_mora_size(node, 2);
       } else if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TWO) == 0) {
@@ -509,9 +509,11 @@ static int is_decimal_digit(NJDNode * digit)
    if (is_period(NJDNode_get_string(digit)))
       return digit->prev != NULL &&
              strcmp(NJDNode_get_pos_group1(digit->prev), NJD_SET_DIGIT_KAZU) == 0;
-   /* 漢字で書いた小数点は、「数詞＋点」の形と、辞書に1語で載っている「一点」の両方を見る */
-   if (strcmp(NJDNode_get_string(digit), "一点") == 0 &&
-       strcmp(NJDNode_get_read(digit), "イッテン") == 0)
+   /* 漢字で書いた小数点は、「数詞＋点」の形と、辞書に1語で載っている「一点」「零点」の両方を見る */
+   if ((strcmp(NJDNode_get_string(digit), "一点") == 0 &&
+        strcmp(NJDNode_get_read(digit), "イッテン") == 0) ||
+       (strcmp(NJDNode_get_string(digit), "零点") == 0 &&
+        strcmp(NJDNode_get_read(digit), "レイテン") == 0))
       return 1;
    integer = digit->prev;
    if (integer != NULL && strcmp(NJDNode_get_string(integer), "ー") == 0)
@@ -718,8 +720,11 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
 
       if (numerical_reading == 0) {
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+         /* 「1.618」と同じく、漢字の「点」で書いた「一点六一八」の小数部も1桁ずつ読む */
+         if (is_decimal_digit(s))
+            numerical_reading = -1;
          /* 「モハ205」は短い「ニヒャクゴ」の位取りにし、「3248」のように長い番号は桁読みにする */
-         if (identifier_numerical_reading(s, final_digit))
+         else if (identifier_numerical_reading(s, final_digit))
             numerical_reading = 1;
          /* 「5823901746283915」のように兆以上の位が要る長い数字列は、位取りが短い「1000000000000」を除いて桁読みにする */
          else if (long_number_digit_reading(s, final_digit))
@@ -1761,8 +1766,7 @@ void njd_set_digit(NJD * njd)
           && strcmp(NJDNode_get_pos_group1(node->next), NJD_SET_DIGIT_KAZU) == 0) {
          NJDNode_load(node, NJD_SET_DIGIT_TEN_FEATURE);
          NJDNode_set_chain_flag(node, 1);
-         if (strcmp(NJDNode_get_string(node->prev), NJD_SET_DIGIT_ZERO1) == 0
-             || strcmp(NJDNode_get_string(node->prev), NJD_SET_DIGIT_ZERO2) == 0) {
+         if (get_digit(node->prev, 0) == 0) {
             NJDNode_set_pron(node->prev, NJD_SET_DIGIT_ZERO_BEFORE_DP);
             NJDNode_set_mora_size(node->prev, 2);
          } else if (strcmp(NJDNode_get_string(node->prev), NJD_SET_DIGIT_TWO) == 0) {
