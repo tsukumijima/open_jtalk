@@ -633,6 +633,8 @@ static void convert_numerative_pron(const char *list[], NJDNode * node1, NJDNode
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
 static int identifier_numerical_reading(NJDNode *start, NJDNode *end);
+static int long_number_digit_reading(NJDNode *start, NJDNode *end);
+static int has_quantity_expression(NJDNode *start, NJDNode *node);
 #endif
 
 static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
@@ -719,6 +721,9 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
          /* 「モハ205」は短い「ニヒャクゴ」の位取りにし、「3248」のように長い番号は桁読みにする */
          if (identifier_numerical_reading(s, final_digit))
             numerical_reading = 1;
+         /* 「5823901746283915」のように兆以上の位が要る長い数字列は、位取りが短い「1000000000000」を除いて桁読みにする */
+         else if (long_number_digit_reading(s, final_digit))
+            numerical_reading = -1;
          else
 #endif
          if (get_digit_sequence_score(s, final_digit) >= 0)
@@ -1219,6 +1224,41 @@ static int identifier_numerical_reading(NJDNode *start, NJDNode *end)
          break;
    }
    return prefers_positional_number(start, end, size);
+}
+
+static int long_number_digit_reading(NJDNode *start, NJDNode *end)
+{
+   NJDNode *node;
+   int size = 0;
+   for (node = start; ; node = node->next) {
+      if (number_digit(node) < 0)
+         return 0;
+      size++;
+      if (node == end)
+         break;
+   }
+   /* 区切りのない13桁以上の数は数量として書かれることがまれで、位取りすると「チョー」「ケー」を含む長い読みになる */
+   /* 12桁以下は「3248」のような数量も位取りで読むので、型番などの文脈がない限りこの判定に含めない */
+   if (size < 13 || prefers_positional_number(start, end, size))
+      return 0;
+   /* 京以上の位は数量でもふつう口にしないので、17桁以上は位取りの方が短い場合を除いて、文脈によらず桁読みする */
+   if (size > 16)
+      return 1;
+   node = end->next;
+   while (node != NULL && strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0)
+      node = node->next;
+   /* 「1234567890123円」「1234567890123.45」は直後の助数詞や小数点で数量と分かるので、位取りで読む */
+   /* 前の負号で手がかりの合計が打ち消される「-1234567890123円」も、直後の助数詞を先に見て数量として読む */
+   if (node != NULL &&
+       (strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
+        strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_FUKUSHIKANOU) == 0 ||
+        is_period(NJDNode_get_string(node))))
+      return 0;
+   /* 「約1234567890123」は前の数接続の語で数量と分かるので、位取りで読む */
+   if (get_digit_sequence_score(start, end) > 0)
+      return 0;
+   /* 「1234567890123以上」「1234567890123に増えた」の数量表現が続く数も、位取りで読む */
+   return !has_quantity_expression(start, node);
 }
 
 static void set_identifier_digit_reading(NJDNode *start, NJDNode *end)
