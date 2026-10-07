@@ -1780,7 +1780,8 @@ void njd_set_digit(NJD * njd)
          }
          /* skip digit sequence */
          node = node->next;
-         while (node && strcmp(NJDNode_get_pos(node), NJD_SET_DIGIT_MEISHI) == 0)
+         /* 小数部の数詞だけをスキップし、単位や一般名詞、空白を表す境界の後にある小数点も処理する */
+         while (node && strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0)
             node = node->next;
          if (node)
             node = node->next;
