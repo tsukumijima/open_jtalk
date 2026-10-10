@@ -789,9 +789,16 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
 static const char *njd_set_digit_rule_hachi_counters[] = {
    "か国", "か所", "か月", "か条", "件", "体", "個", "分", "品", "回", "地区", "地点", "坪", "基",
    "局", "巻", "店舗", "曲", "期", "校", "桁", "機", "歩", "版", "票", "箱", "粒", "級", "編", "羽",
-   "貫", "貫目", "軒", "階", "騎",
+   "貫", "貫目", "軒", "階", "騎", "派", "脚",
    NULL
 };
+
+static int ends_with_sokuon_or_hatsuon(const char *pron)
+{
+   size_t length = strlen(pron);
+   return length >= strlen("ッ") &&
+          (strcmp(pron + length - strlen("ッ"), "ッ") == 0 || strcmp(pron + length - strlen("ン"), "ン") == 0);
+}
 
 static int is_sokuon_odaka_counter(NJDNode *counter)
 {
@@ -2207,6 +2214,23 @@ void njd_set_digit(NJD * njd)
                NJDNode_set_read(node, "コク");
                NJDNode_set_pron(node, "コク");
             }
+            /* tsqyomi が数詞の後の「玉」「元」に「ギョク」「モト」の行を選んでも、数える単位の「タマ」「ゲン」と読む (「フタタマ」「ジューハチゲン」) */
+            if (strcmp(NJDNode_get_string(node), "玉") == 0 && strcmp(NJDNode_get_read(node), "ギョク") == 0) {
+               NJDNode_set_read(node, "タマ");
+               NJDNode_set_pron(node, "タマ");
+               NJDNode_set_mora_size(node, 2);
+            }
+            if (strcmp(NJDNode_get_string(node), "元") == 0 && strcmp(NJDNode_get_read(node), "モト") == 0) {
+               NJDNode_set_read(node, "ゲン");
+               NJDNode_set_pron(node, "ゲン");
+               NJDNode_set_mora_size(node, 2);
+            }
+            /* 数詞に続く「里」は距離の単位として「リ」を使い、村里の「サト」とは読まない */
+            if (strcmp(NJDNode_get_string(node), "里") == 0) {
+               NJDNode_set_read(node, "リ");
+               NJDNode_set_pron(node, "リ");
+               NJDNode_set_mora_size(node, 1);
+            }
             /* convert digit pron */
             if (strcmp(NJDNode_get_string(node), "分") == 0 &&
                 strcmp(NJDNode_get_read(node), "ブン") == 0) {
@@ -2311,9 +2335,12 @@ void njd_set_digit(NJD * njd)
             /* 「袋」は十の後だけ「プクロ」と半濁音にする */
             else if (strcmp(NJDNode_get_string(node), "袋") == 0)
                convert_numerative_pron(njd_set_digit_rule_conv_table_ten_semivoiced, node->prev, node);
-            /* 「寸」は三の後だけ「ズン」と濁音にする */
-            else if (strcmp(NJDNode_get_string(node), "寸") == 0)
+            /* 「寸」は三と何の後だけ「ズン」と濁音にし (「サンズン」「ナンズン」)、十は「ジッ」と読む (「ジッスン」) */
+            else if (strcmp(NJDNode_get_string(node), "寸") == 0) {
                convert_numerative_pron(njd_set_digit_rule_conv_table2f, node->prev, node);
+               if (strcmp(NJDNode_get_string(node->prev), "十") == 0)
+                  NJDNode_set_pron(node->prev, "ジッ");
+            }
             /* 「ワ」と読む「把」は十の後で「パ」、「羽」は千と万の後で「バ」と読む */
             else if (strcmp(NJDNode_get_string(node), "把") == 0 &&
                      strcmp(NJDNode_get_read(node), "ワ") == 0 &&
@@ -2346,10 +2373,9 @@ void njd_set_digit(NJD * njd)
                NJDNode_set_mora_size(node->prev, 2);
                NJDNode_set_pron(node, counter_pron_before);
             }
-            /* tsqyomi が「十八歩」の「歩」に促音の後の「ポ」の行を選ぶと、「ハチ」の後でも半濁音が残るので清音の「ホ」へ戻す */
-            if (strcmp(NJDNode_get_string(node->prev), "八") == 0 &&
-                strcmp(NJDNode_get_pron(node->prev), "ハチ") == 0 &&
-                search_numerative_class(njd_set_digit_rule_hachi_counters, node) == 1) {
+            /* tsqyomi が「十八歩」「2歩」の「歩」に促音の後の「ポ」の行を選ぶと、促音でも撥音でもない「ハチ」「ニ」の後でも半濁音が残るので、清音の「ホ」へ戻す */
+            if (search_numerative_class(njd_set_digit_rule_hachi_counters, node) == 1 &&
+                !ends_with_sokuon_or_hatsuon(NJDNode_get_pron(node->prev))) {
                static const char *handakuon[] = {"パ", "ピ", "プ", "ペ", "ポ"};
                static const char *seion[] = {"ハ", "ヒ", "フ", "ヘ", "ホ"};
                const char *pron = NJDNode_get_pron(node);
@@ -2438,6 +2464,9 @@ void njd_set_digit(NJD * njd)
          /* convert class3 */
          for (i = 0; njd_set_digit_rule_numerative_class3[i] != NULL; i += 2) {
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+            /* 「第1幕」「第2日」のように「第」の後の数は順番を表すので、和語の「ヒト」「フタ」にしない */
+            if (node->prev != NULL && strcmp(NJDNode_get_string(node->prev), "第") == 0)
+               break;
             /* 「幕目」の前では数詞を和語の「ヒト」「フタ」「ミ」などに変えず、「イチマクメ」「サンマクメ」と読む */
             if (strcmp(NJDNode_get_string(node->next), "幕") == 0 &&
                 node->next->next != NULL && strcmp(NJDNode_get_string(node->next->next), "目") == 0)
@@ -2480,6 +2509,11 @@ void njd_set_digit(NJD * njd)
          /* the day of month */
          if (strcmp(NJDNode_get_string(node->next), NJD_SET_DIGIT_NICHI) == 0
              && strcmp(NJDNode_get_string(node), "*") != 0) {
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+            /* 「第2日」「第3日目」は何日目かを表す順番なので、「フツカ」「ミッカ」でなく「ダイニニチ」「ダイサンニチメ」と読む */
+            if (node->prev != NULL && strcmp(NJDNode_get_string(node->prev), "第") == 0) {
+            } else
+#endif
             if (node->prev != NULL
                 && strstr(NJDNode_get_string(node->prev), NJD_SET_DIGIT_GATSU) != NULL
                 && strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_ONE) == 0) {

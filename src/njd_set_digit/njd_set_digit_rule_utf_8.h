@@ -432,7 +432,7 @@ static const char *njd_set_digit_rule_conv_table_eight_ten[] = {
 static const char *njd_set_digit_rule_counter_words[] = {
    "機種", "区画", "区間", "市", "種目", "選", "センチメートル", "家族", "カップ",
    "系統", "工程", "項目", "シーベルト", "世帯", "チーム", "地区", "地点", "店舗",
-   "フィート", "ヘルツ", "場所", "役", "玉", "アンダー", "部屋", "試合", NULL
+   "フィート", "ヘルツ", "場所", "役", "玉", "アンダー", "部屋", "試合", "里", NULL
 };
 
 /* 「2024 年」の「トシ」、「3 人」の「ヒト」を、空白なしで選ばれる助数詞の読みと結合規則へ戻す */
@@ -549,6 +549,8 @@ static const char *njd_set_digit_rule_conv_table2e[] = {
    "三", "1",
    "千", "1",
    "万", "1",
+   /* 「何軒」「何尺」も「三」と同じく「ナンゲン」「ナンジャク」と濁る */
+   "何", "1",
    NULL, NULL
 };
 
@@ -560,6 +562,7 @@ static const char *njd_set_digit_rule_numerative_class2f[] = {
 
 static const char *njd_set_digit_rule_conv_table2f[] = {
    "三", "1",
+   "何", "1",
    NULL, NULL
 };
 
