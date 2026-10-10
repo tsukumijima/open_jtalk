@@ -1799,6 +1799,41 @@ static void set_flight_number_accent(NJD *njd)
 }
 #endif
 
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+static void set_written_place_chain_rule(NJDNode *node, const char *list[])
+{
+   NJDNode rule_node;
+   const char *str = NJDNode_get_string(node);
+   size_t length = strlen(str);
+   int i;
+   for (i = 1; list[i] != NULL; i++) {
+      if (strncmp(list[i], str, length) != 0 || list[i][length] != ',')
+         continue;
+      NJDNode_initialize(&rule_node);
+      NJDNode_load(&rule_node, (char *) list[i]);
+      NJDNode_set_chain_rule(node, NJDNode_get_chain_rule(&rule_node));
+      NJDNode_clear(&rule_node);
+      return;
+   }
+}
+
+static void set_written_place_chain_rules(NJD *njd)
+{
+   NJDNode *node;
+   /* 漢字で書いた「七百十三」の「百」「十」は辞書の行の結合規則 (C3) を持ち、算用数字の「713」から作る位の字は規則の表の値を持つ */
+   /* 同じ数を同じアクセントで読むため、数詞に続く位の字には、算用数字から作るときと同じ結合規則を使う */
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (node->prev == NULL ||
+          strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) != 0 ||
+          strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0)
+         continue;
+      /* 「万」「億」は算用数字の「13億」でも辞書の行のまま読むので、表の値にそろえるのは「十」「百」「千」だけにする */
+      set_written_place_chain_rule(node, njd_set_digit_rule_numeral_list2);
+   }
+}
+
+#endif
+
 void njd_set_digit(NJD * njd)
 {
    int i, j;
@@ -1808,6 +1843,7 @@ void njd_set_digit(NJD * njd)
    int find = 0;
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
    NJDNumberSequence *number_sequences;
+   set_written_place_chain_rules(njd);
    /* 「3 本」の「ホン」を助数詞へ戻してから、「サンボン」の濁音化とアクセント結合を適用する */
    restore_counter_features(njd);
    number_sequences = prepare_number_sequences(njd);
