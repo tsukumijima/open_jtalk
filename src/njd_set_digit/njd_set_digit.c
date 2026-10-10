@@ -813,6 +813,42 @@ static int is_sokuon_odaka_counter(NJDNode *counter)
 }
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+static int is_time_of_day_word(NJDNode *node)
+{
+   static const char *words[] = {"午前", "午後", "朝", "夕", "夜", "未明", "早朝", "深夜", "夕方", "正午", "昼", "付",
+                                 "付け", NULL};
+   int i;
+   if (node == NULL)
+      return 0;
+   for (i = 0; words[i] != NULL; i++)
+      if (strcmp(NJDNode_get_string(node), words[i]) == 0)
+         return 1;
+   return 0;
+}
+
+static int is_news_date_context(NJDNode *following)
+{
+   NJDNode *node;
+   /* 報道の書き出しの「1日、」「政府は1日、」や「1日の夜」「一日午後」「1日付」の「1日」は、月がなくても日付の「ツイタチ」と読む */
+   /* 日数の「1日に3回」「1日かかる」「1日の生活」は「イチニチ」のまま読む */
+   if (following == NULL)
+      return 0;
+   if (strcmp(NJDNode_get_string(following), "、") == 0 || strcmp(NJDNode_get_string(following), "，") == 0 ||
+       is_time_of_day_word(following))
+      return 1;
+   if (strcmp(NJDNode_get_string(following), "の") == 0)
+      return is_time_of_day_word(following->next);
+   /* 「1日と2日を休みに」のように日付を並べる形と、「1日から8月です」のように月の名前が続く形も日付として読む */
+   if (strcmp(NJDNode_get_string(following), "と") == 0) {
+      for (node = following->next; node != NULL && strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0;
+           node = node->next);
+      return node != NULL && node != following->next && strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_NICHI) == 0;
+   }
+   if (strcmp(NJDNode_get_string(following), "から") == 0 && following->next != NULL)
+      return strstr(NJDNode_get_string(following->next), NJD_SET_DIGIT_GATSU) != NULL;
+   return 0;
+}
+
 static int is_counter_after_digits(NJDNode *node)
 {
    return node != NULL && (strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
@@ -2210,6 +2246,32 @@ static void set_fraction_readings_of_fun_words(NJD *njd)
    }
 }
 
+static void set_news_date_first_day(NJD *njd)
+{
+   NJDNode *node;
+   NJDNode *following;
+   /* 報道の「1日、」「1日の夜」「一日午後」「1日付」の「1日」は、月がなくても日付の「ツイタチ」と読む */
+   /* 漢数字の「一日、」は「今日も一日、」「一日、32ドル」のように日数を表すことが多いので、漢数字は時間帯の語が続くときだけにする */
+   for (node = njd->head; node != NULL && node->next != NULL; node = node->next) {
+      if ((strcmp(NJDNode_get_string(node), "１") != 0 && strcmp(NJDNode_get_string(node), "一") != 0) ||
+          strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) != 0 ||
+          (node->prev != NULL && strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0) ||
+          strcmp(NJDNode_get_string(node->next), NJD_SET_DIGIT_NICHI) != 0 ||
+          !is_news_date_context(node->next->next))
+         continue;
+      following = node->next->next;
+      /* 「一日付で」は「1日付で」と違って日数の「イチニチ」とも読めるので、漢数字は午前・午後のような時間帯の語だけを見る */
+      if (strcmp(NJDNode_get_string(node), "一") == 0 &&
+          (strncmp(NJDNode_get_string(following), "付", strlen("付")) == 0 ||
+           (!is_time_of_day_word(following) &&
+            !(strcmp(NJDNode_get_string(following), "の") == 0 && is_time_of_day_word(following->next)))))
+         continue;
+      NJDNode_load(node, NJD_SET_DIGIT_TSUITACHI);
+      /* 数詞の語がなくなると後の数詞の処理まで進まないので、読みを1語に移した「日」はここで外す */
+      NJD_remove_node(njd, node->next);
+   }
+}
+
 static void set_kurai_after_day_words(NJD *njd)
 {
    NJDNode *node;
@@ -2309,6 +2371,7 @@ void njd_set_digit(NJD * njd)
    mark_approximate_number_commas(njd);
    /* 「十日位」は数詞の語を含まず、後の数詞の処理まで進まないので、ここで「位」を直す */
    set_kurai_after_day_words(njd);
+   set_news_date_first_day(njd);
    /* 「070」のように全桁を番号として保護した文でも、通常の数詞処理の後で品詞を戻す */
    if (number_sequences != NULL)
       find = 1;
