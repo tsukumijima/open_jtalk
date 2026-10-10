@@ -2509,6 +2509,72 @@ static void set_approximate_number_readings(NJD *njd)
    }
 }
 
+static void set_approximate_counter_accents(NJD *njd)
+{
+   /* 「1、2回」「2、3本」のように平板型で読む助数詞 (「2、3人」は「2、3」の後だけ) */
+   static const char *flat_counters[] = {"回", "冊", "度", "年", "遍", "本", NULL};
+   /* 「2、3日」「1、2時間」「1、2か月」は、助数詞の結合規則のまま「ニサ＼ンニチ」「イチニジ＼カン」「イチニカ＼ゲツ」と読む */
+   static const char *accented_counters[] = {"日", "時", "か月", NULL};
+   NJDNode *node, *counter;
+   int x, i, is_flat, is_accented;
+
+   /* 概数の読点は句の頭にされていて、句の核は前の数 (「ニ＼」) のものが使われるので、本編に載る組み合わせだけ前の数の句につなぐ */
+   /* 「1、2」「2、3」の後の助数詞と「3、4日」だけを扱い、ほかの数の並びと「1、2人」(「イチ＼ニニン」) は今までどおりに読む */
+   for (node = njd->head; node != NULL; node = node->next) {
+      /* 「3、4日」は、書き言葉の「三四日」と同じく和語の「ヨッカ」で「サ＼ンヨッカ」と読む */
+      if (is_approximate_number_comma(node) && get_digit(node->prev, 0) == 3 && node->next != NULL &&
+          NJDNode_get_chain_flag(node->next) == 1 &&
+          (day_word_digit(node->next) == 4 ||
+           (get_digit(node->next, 0) == 4 && node->next->next != NULL &&
+            NJDNode_get_chain_flag(node->next->next) == 1 &&
+            strcmp(NJDNode_get_string(node->next->next), NJD_SET_DIGIT_NICHI) == 0))) {
+         if (day_word_digit(node->next) == 4) {
+            NJDNode_set_read(node->next, "ヨッカ");
+            NJDNode_set_pron(node->next, "ヨッカ");
+            NJDNode_set_mora_size(node->next, 3);
+         } else {
+            NJDNode_set_read(node->next, "ヨッ");
+            NJDNode_set_pron(node->next, "ヨッ");
+            NJDNode_set_mora_size(node->next, 2);
+            NJDNode_set_read(node->next->next, "カ");
+            NJDNode_set_pron(node->next->next, "カ");
+            NJDNode_set_mora_size(node->next->next, 1);
+            NJDNode_set_chain_rule(node->next->next, "F1");
+         }
+         NJDNode_set_chain_flag(node, 1);
+         NJDNode_set_chain_rule(node->next, "F1");
+         NJDNode_set_acc(node->prev, 1);
+         continue;
+      }
+      if (!is_approximate_number_comma(node) || node->next == NULL || node->next->next == NULL ||
+          NJDNode_get_chain_flag(node->next) != 1 || NJDNode_get_chain_flag(node->next->next) != 1)
+         continue;
+      x = get_digit(node->prev, 0);
+      if (x != 1 && x != 2)
+         continue;
+      counter = node->next->next;
+      is_flat = strcmp(NJDNode_get_string(counter), NJD_SET_DIGIT_NIN) == 0 && x == 2;
+      for (i = 0; flat_counters[i] != NULL; i++)
+         if (strcmp(NJDNode_get_string(counter), flat_counters[i]) == 0)
+            is_flat = 1;
+      is_accented = 0;
+      for (i = 0; accented_counters[i] != NULL; i++)
+         if (strcmp(NJDNode_get_string(counter), accented_counters[i]) == 0)
+            is_accented = 1;
+      /* 「2、3日」は本編に載るが「1、2日」は載らず、「1、2か月」は載るが「2、3か月」は載らない */
+      if ((strcmp(NJDNode_get_string(counter), NJD_SET_DIGIT_NICHI) == 0 && x != 2) ||
+          (strcmp(NJDNode_get_string(counter), "か月") == 0 && x != 1) ||
+          (strcmp(NJDNode_get_string(counter), "時") == 0 &&
+           (counter->next == NULL || strcmp(NJDNode_get_string(counter->next), "間") != 0)))
+         is_accented = 0;
+      if (!is_flat && !is_accented)
+         continue;
+      NJDNode_set_chain_flag(node, 1);
+      if (is_flat)
+         NJDNode_set_chain_rule(counter, "F5");
+   }
+}
+
 static void set_number_list_separator_phrases(NJD *njd)
 {
    NJDNode *node;
@@ -3235,6 +3301,7 @@ void njd_set_digit(NJD * njd)
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
    set_kaikyuu_counter_accents(njd);
    set_man_yen_accents(njd);
+   set_approximate_counter_accents(njd);
    set_day_word_suffix_accents(njd);
    finish_number_sequences(number_sequences);
    set_restored_month_accents(njd);
