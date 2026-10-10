@@ -118,8 +118,8 @@ static int get_digit(NJDNode * node, int convert_flag)
 
 static int is_period(const char *str)
 {
-   if (str != NULL &&
-       (strcmp(str, NJD_SET_DIGIT_TEN1) == 0 || strcmp(str, NJD_SET_DIGIT_TEN2) == 0)) {
+   /* 小数点は「．」だけにし、「1・2年生」「3・4月」のように数を並べる中黒は小数点として読まない */
+   if (str != NULL && strcmp(str, NJD_SET_DIGIT_TEN1) == 0) {
       return 1;
    } else {
       return 0;
@@ -1294,6 +1294,12 @@ static int is_written_digit_sequence(NJDNode *start, NJDNode *end)
       for (i = 1; njd_set_digit_rule_numeral_list5[i] != NULL; i++)
          if (strcmp(NJDNode_get_string(following), njd_set_digit_rule_numeral_list5[i]) == 0)
             return 0;
+   /* 「三〇・四〇代」「一〇・二〇人」のように中黒で数を並べるときは、後ろの数と同じ読み方にそろえ、「サンジュー・ヨンジューダイ」と読む */
+   if (following != NULL && strcmp(NJDNode_get_string(following), "・") == 0 &&
+       is_kanji_digit_string(following->next)) {
+      for (node = following->next; is_kanji_digit_string(node->next); node = node->next);
+      return is_written_digit_sequence(following->next, node);
+   }
    /* 「一九九五年」「一一七一円」の数量は位取りを保ち、「一二号室」「八〇二号室」は番号の表記を優先する */
    if (following != NULL && strcmp(NJDNode_get_pos_group2(following), NJD_SET_DIGIT_JOSUUSHI) == 0 &&
        strcmp(NJDNode_get_string(following), "号室") != 0 &&
@@ -1947,6 +1953,89 @@ static void set_written_place_chain_rules(NJD *njd)
    }
 }
 
+/* 縦書きで「三・五％」「一・五倍」のように中黒を小数点に使うとき、後ろに続く量の単位 */
+static const char *njd_set_digit_rule_vertical_decimal_units[] = {
+   "％", "パーセント", "割", "倍", "度", "円", "ドル", "キロ", "キロメートル", "キログラム",
+   "メートル", "センチ", "センチメートル", "ミリ", "ミリメートル", "グラム", "ミリグラム",
+   "リットル", "ミリリットル", "トン", "ヘクタール",
+   NULL
+};
+
+static void set_vertical_decimal_points(NJD *njd)
+{
+   NJDNode *node, *digit, *first, *last;
+   int has_zero, has_unit, has_counter, i;
+   /* 漢数字の間の中黒は、ふつうは「一・二年生」「三・四月」「三〇・四〇代」のように数を並べる区切りだが、縦書きでは小数点にも使う */
+   /* 小数点として読むのは、次のどれかで小数と分かるときだけにする */
+   /* (a) 前の数が「〇・五」「〇・〇三」のように「〇」で始まる */
+   /* (b) 後ろの数の直後に「三・五％」「一・五倍」のように量の単位が続く */
+   /* (c) 前の数が「一〇・五」のように「〇」を書く桁読みの表記で、後ろの数が「〇」で終わらず、後ろに助数詞も続かない */
+   /* 「二〇・三〇年代」「一〇・二〇人」は後ろの数が「〇」で終わるので、並びのまま読む */
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_string(node), "・") != 0 || !is_kanji_digit_string(node->prev) ||
+          !is_kanji_digit_string(node->next))
+         continue;
+      has_zero = 0;
+      for (first = node->prev; ; first = first->prev) {
+         if (strcmp(NJDNode_get_string(first), "〇") == 0)
+            has_zero = 1;
+         if (!is_kanji_digit_string(first->prev))
+            break;
+      }
+      for (last = node->next; is_kanji_digit_string(last->next); last = last->next);
+      has_unit = 0;
+      has_counter = 0;
+      digit = last->next;
+      if (digit != NULL) {
+         for (i = 0; njd_set_digit_rule_vertical_decimal_units[i] != NULL; i++)
+            if (strcmp(NJDNode_get_string(digit), njd_set_digit_rule_vertical_decimal_units[i]) == 0)
+               has_unit = 1;
+         has_counter = strcmp(NJDNode_get_pos_group2(digit), NJD_SET_DIGIT_JOSUUSHI) == 0;
+      }
+      if (strcmp(NJDNode_get_string(first), "〇") == 0 || has_unit ||
+          (has_zero && strcmp(NJDNode_get_string(last), "〇") != 0 && !has_counter))
+         NJDNode_set_string(node, NJD_SET_DIGIT_TEN1);
+   }
+}
+
+static int starts_with_digit_character(NJDNode *node)
+{
+   static const char *digits[] = {"０", "１", "２", "３", "４", "５", "６", "７", "８", "９",
+                                  "〇", "一", "二", "三", "四", "五", "六", "七", "八", "九", NULL};
+   const char *str = NJDNode_get_string(node);
+   int i;
+   for (i = 0; digits[i] != NULL; i++)
+      if (strncmp(str, digits[i], strlen(digits[i])) == 0)
+         return 1;
+   return 0;
+}
+
+static void mark_number_list_separators(NJD *njd)
+{
+   NJDNode *node;
+   /* 「1・2年生」「3・4月」「1・2・3」の数の間の中黒は数を並べる区切りなので、前後を別々の数として読む */
+   /* 「3・4月」の後ろは辞書の1語「４月」になるので、後ろは数字で始まる語まで含める */
+   /* 電話番号・郵便番号として保護した数は品詞が「数」でなくなるので、その区切りの休止や「ノ」は変えない */
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_string(node), "・") == 0 && node->prev != NULL && node->next != NULL &&
+          strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0 &&
+          (strcmp(NJDNode_get_pos_group1(node->next), NJD_SET_DIGIT_KAZU) == 0 ||
+           starts_with_digit_character(node->next)))
+         NJDNode_set_pos_group3(node, "数の区切り");
+   }
+}
+
+static void set_number_list_separator_phrases(NJD *njd)
+{
+   NJDNode *node;
+   /* 数を並べる中黒の後ろの数から別のアクセント句にする (「イチ」「ニネンセー」) */
+   /* 中黒の語は残し、休止を置かないよう JPCommon へ渡すときに発音を空にする (njd2jpcommon) */
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_string(node), "・") == 0 &&
+          strcmp(NJDNode_get_pos_group3(node), "数の区切り") == 0 && node->next != NULL)
+         NJDNode_set_chain_flag(node->next, 0);
+   }
+}
 #endif
 
 void njd_set_digit(NJD * njd)
@@ -1958,10 +2047,12 @@ void njd_set_digit(NJD * njd)
    int find = 0;
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
    NJDNumberSequence *number_sequences;
+   set_vertical_decimal_points(njd);
    set_written_place_chain_rules(njd);
    /* 「3 本」の「ホン」を助数詞へ戻してから、「サンボン」の濁音化とアクセント結合を適用する */
    restore_counter_features(njd);
    number_sequences = prepare_number_sequences(njd);
+   mark_number_list_separators(njd);
    /* 「070」のように全桁を番号として保護した文でも、通常の数詞処理の後で品詞を戻す */
    if (number_sequences != NULL)
       find = 1;
@@ -2405,6 +2496,9 @@ void njd_set_digit(NJD * njd)
       }
    }
 
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+   set_number_list_separator_phrases(njd);
+#endif
    NJD_remove_silent_node(njd);
    if (njd->head == NULL)
       return;

@@ -156,9 +156,17 @@ void njd2jpcommon(JPCommon * jpcommon, NJD * njd)
       JPCommonNode_initialize(jnode);
 
       // NOTE: 属性を必要に応じて変換し、詰め替える
-      JPCommonNode_set_pron(jnode, NJDNode_get_pron(inode));
-      convert_pos(buff, NJDNode_get_pos(inode), NJDNode_get_pos_group1(inode),
-                  NJDNode_get_pos_group2(inode), NJDNode_get_pos_group3(inode));
+      // NOTE: 「1・2年生」の数を並べる中黒は、語の位置を保ったまま発音を空にして、休止を置かない
+      // NOTE: 印に使った品詞細分類3は JPCommon の品詞の表にないので、品詞の変換には「*」として渡す
+      if (strcmp(NJDNode_get_pos_group3(inode), "数の区切り") == 0) {
+         JPCommonNode_set_pron(jnode, "");
+         convert_pos(buff, NJDNode_get_pos(inode), NJDNode_get_pos_group1(inode),
+                     NJDNode_get_pos_group2(inode), "*");
+      } else {
+         JPCommonNode_set_pron(jnode, NJDNode_get_pron(inode));
+         convert_pos(buff, NJDNode_get_pos(inode), NJDNode_get_pos_group1(inode),
+                     NJDNode_get_pos_group2(inode), NJDNode_get_pos_group3(inode));
+      }
       JPCommonNode_set_pos(jnode, buff);
       convert_ctype(buff, NJDNode_get_ctype(inode));
       JPCommonNode_set_ctype(jnode, buff);
