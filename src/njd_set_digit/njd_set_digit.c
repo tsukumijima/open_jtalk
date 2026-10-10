@@ -2604,7 +2604,10 @@ void njd_set_digit(NJD * njd)
                convert_digit_pron(njd_set_digit_rule_conv_table1g, node->prev);
             else if (search_numerative_class(njd_set_digit_rule_numerative_class1h, node) == 1)
                convert_digit_pron(njd_set_digit_rule_conv_table1h, node->prev);
-            else if (search_numerative_class(njd_set_digit_rule_numerative_class1i, node) == 1)
+            /* 表にない「ｋＷ」「ｋＨｚ」のような大文字を含む英字の単位も、「キロ」と読むものは「キロワット」と同じく「ロッキロワット」と促音にする */
+            else if (search_numerative_class(njd_set_digit_rule_numerative_class1i, node) == 1 ||
+                     (strncmp(NJDNode_get_string(node), "ｋ", strlen("ｋ")) == 0 &&
+                      strncmp(NJDNode_get_read(node), "キロ", strlen("キロ")) == 0))
                convert_digit_pron(njd_set_digit_rule_conv_table1i, node->prev);
             else if (search_numerative_class(njd_set_digit_rule_numerative_class1j, node) == 1)
                convert_digit_pron(njd_set_digit_rule_conv_table1j, node->prev);
