@@ -1041,25 +1041,68 @@ static int is_number_hyphen(NJDNode *node)
           strcmp(str, "-") == 0;
 }
 
+static int is_special_phone_number(NJDNode *start, NJDNode *end)
+{
+   static const int numbers[] = {104, 110, 113, 115, 117, 118, 119, 171, 177, 184, 186, 188, 189};
+   NJDNode *node;
+   int value = 0, size = 0, digit;
+   size_t i;
+   /* 番号案内・警察・故障受付・電報・時報・海上保安・消防・災害用伝言ダイヤル・天気予報・番号の通知・消費者ホットライン・児童相談の、広く知られた 1XY の番号 */
+   for (node = start; node != end->next; node = node->next) {
+      digit = number_digit(node);
+      if (digit < 0)
+         return 0;
+      value = value * 10 + digit;
+      size++;
+   }
+   if (size != 3)
+      return 0;
+   for (i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
+      if (value == numbers[i])
+         return 1;
+   return 0;
+}
+
+static int number_size(NJDNode *start, NJDNode *end)
+{
+   NJDNode *node;
+   int size = 0;
+   for (node = start; node != end->next; node = node->next)
+      size++;
+   return size;
+}
+
 static int has_phone_context(NJDNode *start, NJDNode *end)
 {
    NJDNode *node;
    int distance = 0;
-   /* 「119に電話する」「119 に電話する」は直後の「に電話」で発信先の番号と判定し、「イチイチキュー」と読む */
+   /* 「119に電話する」「188に相談」「110へ通報」のように、広く知られた 1XY の番号に電話をかける語が続くときは発信先の番号として桁読みする */
+   /* 間の助詞は「に」「へ」「を」「で」を許し、「100に電話料金を足す」のような普通の数や、「話者1に電話」のように名詞へ付く数字は対象にしない */
    node = end->next;
    while (node != NULL && strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0)
       node = node->next;
-   /* 「話者1に電話」のように名詞へ直接付く数字は名前の一部なので、独立した番号だけを後続の「に電話」で判定する */
-   if (node != NULL && strcmp(NJDNode_get_string(node), "に") == 0 &&
+   if (is_special_phone_number(start, end) &&
        (start->prev == NULL || strcmp(NJDNode_get_pos(start->prev), "名詞") != 0)) {
-      node = node->next;
-      while (node != NULL && strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0)
+      if (node != NULL && strcmp(NJDNode_get_pos(node), "助詞") == 0 &&
+          (strcmp(NJDNode_get_string(node), "に") == 0 || strcmp(NJDNode_get_string(node), "へ") == 0 ||
+           strcmp(NJDNode_get_string(node), "を") == 0 || strcmp(NJDNode_get_string(node), "で") == 0)) {
          node = node->next;
-      if (node != NULL && strcmp(NJDNode_get_string(node), "電話") == 0)
+         while (node != NULL && strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0)
+            node = node->next;
+      }
+      if (node != NULL &&
+          (strcmp(NJDNode_get_string(node), "電話") == 0 || strcmp(NJDNode_get_string(node), "通報") == 0 ||
+           strcmp(NJDNode_get_string(node), "連絡") == 0 || strcmp(NJDNode_get_string(node), "ダイヤル") == 0 ||
+           strcmp(NJDNode_get_string(node), "相談") == 0 || strcmp(NJDNode_get_string(node), "コール") == 0 ||
+           (strcmp(NJDNode_get_pos(node), "動詞") == 0 &&
+            (strcmp(NJDNode_get_orig(node), "かける") == 0 || strcmp(NJDNode_get_orig(node), "掛ける") == 0))))
          return 1;
    }
    /* 「市外局番213の、486ー2435」「電話 03 1234 5678」は区切りと数字をたどり、電話番号の最後の組まで文脈を保つ */
    for (node = start->prev; node != NULL && distance < 16; node = node->prev, distance++) {
+      /* 見出しが「電話」だけのときは、「電話は100ある」のような3桁以下の数を数量として位取りで読む */
+      if (strcmp(NJDNode_get_string(node), "電話") == 0 && number_size(start, end) <= 3)
+         break;
       if (strcmp(NJDNode_get_string(node), "電話") == 0 ||
           strcmp(NJDNode_get_string(node), "電話番号") == 0 ||
           strcmp(NJDNode_get_string(node), "ファクス") == 0 ||
@@ -1177,17 +1220,28 @@ static void set_phone_digit_reading(NJDNode *start, NJDNode *end, int first_grou
    static const int accents[] = {1, 2, 1, 0, 1, 1, 1, 1, 1, 1};
    NJDNode *node;
    int digit, index = 0, group_index = 0;
+   int total = number_size(start, end);
+   int second_group_size = first_group_size == 4 ? 3 : 4;
+   int group_size = first_group_size > 0 ? first_group_size : total;
    for (node = start; node != end->next; node = node->next, index++) {
       /* 「07032245679」は休止のない3-4-4の組として数え、組ごとにアクセント句を分ける */
       if (first_group_size > 0 &&
-          (index == first_group_size || index == first_group_size + (first_group_size == 4 ? 3 : 4)))
+          (index == first_group_size || index == first_group_size + second_group_size)) {
          group_index = 0;
+         group_size = index == first_group_size ? second_group_size : total - first_group_size - second_group_size;
+      }
       /* 保護中は品詞を一時変更しているため、値を調べる間だけ数詞に戻す */
       NJDNode_set_pos_group1(node, NJD_SET_DIGIT_KAZU);
       digit = number_digit(node);
       NJDNode_set_pos_group1(node, "一般");
       NJDNode_set_read(node, (char *) readings[digit]);
       NJDNode_set_pron(node, (char *) readings[digit]);
+      /* 3桁の組の真ん中の0は、部屋番号と同じく「マル」と読む (「104」は「イチマルヨン」、「205」は「ニーマルゴー」) */
+      /* 組の先頭と末尾の0 (「110」「070」) と、4桁の組の0は「ゼロ」のまま読む */
+      if (digit == 0 && group_size == 3 && group_index == 1) {
+         NJDNode_set_read(node, "マル");
+         NJDNode_set_pron(node, "マル");
+      }
       NJDNode_set_mora_size(node, 2);
       NJDNode_set_acc(node, accents[digit]);
       NJDNode_set_chain_rule(node, "C5");
