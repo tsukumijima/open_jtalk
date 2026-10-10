@@ -439,7 +439,9 @@ static NJDNode *calendar_field(NJDNode *start, const char *unit, int max_digits,
 static void remove_calendar_leading_zeros(NJD *njd)
 {
    NJDNode *start, *year_node, *month_node, *day_node, *next, *zero;
-   int year, month, day, max_day;
+   const char *eras[] = { "令和", "平成", "昭和", "大正", "明治", NULL };
+   const int era_offsets[] = { 2018, 1988, 1925, 1911, 1867 };
+   int year, month, day, max_day, era;
    for (start = njd->head; start != NULL; start = next) {
       next = start->next;
       if (start->prev != NULL &&
@@ -447,8 +449,28 @@ static void remove_calendar_leading_zeros(NJD *njd)
            strcmp(NJDNode_get_string(start->prev), "第") == 0))
          continue;
       year_node = calendar_field(start, "年", 4, &year);
-      if (year_node == NULL || year < 1000)
+      for (era = 0; eras[era] != NULL; era++)
+         if (start->prev != NULL &&
+             (strcmp(NJDNode_get_string(start->prev), eras[era]) == 0 ||
+              (start->prev->prev != NULL &&
+               strlen(NJDNode_get_string(start->prev->prev)) == 3 &&
+               strncmp(NJDNode_get_string(start->prev->prev), eras[era], 3) == 0 &&
+               strcmp(NJDNode_get_string(start->prev), eras[era] + 3) == 0)))
+            break;
+      /* 「令和元年」「令和元 年」も日付の年表記として扱い、閏年の判定には西暦へ換算した年を使う */
+      if (eras[era] != NULL &&
+          (strcmp(NJDNode_get_string(start), "元年") == 0 ||
+           (strcmp(NJDNode_get_string(start), "元") == 0 && start->next != NULL &&
+            strcmp(NJDNode_get_string(start->next), "年") == 0 &&
+            strcmp(NJDNode_get_pos_group3(start->next), "読み保護") != 0)) &&
+          strcmp(NJDNode_get_pos_group3(start), "読み保護") != 0) {
+         year_node = strcmp(NJDNode_get_string(start), "元年") == 0 ? start : start->next;
+         year = 1;
+      }
+      if (year_node == NULL || (eras[era] == NULL ? year < 1000 : year < 1 || year > 99))
          continue;
+      if (eras[era] != NULL)
+         year += era_offsets[era];
       month_node = calendar_field(year_node->next, "月", 2, &month);
       if (month_node == NULL || month < 1 || month > 12)
          continue;
