@@ -51,6 +51,7 @@
 #include <string.h>
 
 #include <iostream>
+#include <vector>
 
 #include "mecab.h"
 
@@ -174,6 +175,142 @@ BOOL Mecab_load_with_userdic(Mecab *m, const char *dicdir, const char *userdic)
    return TRUE;
 }
 
+/* 漢数字の1字 (UTF-8 で3バイト) から始まるかを返す。digit_only が真なら「十」「百」などの位の字を含めない */
+static bool Mecab_starts_with_kanji_numeral(const char *str, size_t size, size_t pos, bool digit_only)
+{
+   static const char *digits[] = {"〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
+   static const char *places[] = {"十", "百", "千", "万", "億", "兆"};
+   size_t i;
+   if (pos + 3 > size)
+      return false;
+   for (i = 0; i < sizeof(digits) / sizeof(digits[0]); i++)
+      if (memcmp(str + pos, digits[i], 3) == 0)
+         return true;
+   if (digit_only)
+      return false;
+   for (i = 0; i < sizeof(places) / sizeof(places[0]); i++)
+      if (memcmp(str + pos, places[i], 3) == 0)
+         return true;
+   return false;
+}
+
+/* 1桁の数字 (漢数字か、text2mecab が全角にした算用数字) が pos で終わるかを返す */
+static bool Mecab_ends_with_digit(const char *str, size_t size, size_t pos)
+{
+   if (pos < 3)
+      return false;
+   /* 全角の「０」〜「９」は EF BC 90 〜 EF BC 99 */
+   if ((unsigned char) str[pos - 3] == 0xEF && (unsigned char) str[pos - 2] == 0xBC &&
+       (unsigned char) str[pos - 1] >= 0x90 && (unsigned char) str[pos - 1] <= 0x99)
+      return true;
+   return Mecab_starts_with_kanji_numeral(str, size, pos - 3, true);
+}
+
+/* 1桁の数字が pos から始まるかを返す */
+static bool Mecab_starts_with_digit(const char *str, size_t size, size_t pos)
+{
+   return Mecab_ends_with_digit(str, size, pos + 3);
+}
+
+/* 電話番号などの数字の組を区切るハイフンの長さを返す。ハイフンでなければ0を返す */
+static size_t Mecab_hyphen_length_at(const char *str, size_t size, size_t pos, bool ends_at_pos)
+{
+   static const char *hyphens[] = {"−", "－", "‐", "‑", "‒", "–", "—", "ー", "-"};
+   size_t i, length;
+   for (i = 0; i < sizeof(hyphens) / sizeof(hyphens[0]); i++) {
+      length = strlen(hyphens[i]);
+      if (ends_at_pos) {
+         if (pos >= length && memcmp(str + pos - length, hyphens[i], length) == 0)
+            return length;
+      } else if (pos + length <= size && memcmp(str + pos, hyphens[i], length) == 0) {
+         return length;
+      }
+   }
+   return 0;
+}
+
+static bool Mecab_is_numeral_node(const MeCab::Node *node)
+{
+   return node->feature != NULL && strncmp(node->feature, "名詞,数,", strlen("名詞,数,")) == 0;
+}
+
+/* 漢数字の並びを、算用数字と同じく1字ずつの形態素に分ける必要がある並びを探し、各字の境目の位置を返す
+   1. 「二十三」を「二」+「十三」、「二十八時間」を「二」+「十」+「八時間」のように、数詞の後で並びの途中から始まる語を選んだ並び
+      「十三」「八時間」「十六日」は辞書の語なので、数の一部として読むと区切りが崩れ、位取りとアクセントが算用数字と食い違う
+      並びの先頭から始まる「八百屋」「二十歳」「五十嵐」のような語は、数ではない語として残す
+   2. 「〇三-九九-〇〇」のように、ハイフンを挟んで数字とつながる桁読みの漢数字の並び
+      電話番号の組の「九九」を掛け算の「クク」、「〇〇〇」をハイフンとまとめた1つの記号として解析させない */
+static void Mecab_collect_numeral_boundaries(MeCab::Lattice *lattice, std::vector<size_t> *boundaries)
+{
+   const char *str = lattice->sentence();
+   const size_t size = lattice->size();
+   const MeCab::Node *node, *prev = NULL;
+   size_t begin, end, pos, hyphen_length;
+   bool is_junction, is_linked;
+
+   for (node = lattice->bos_node(); node != NULL; node = node->next) {
+      if (node->stat == MECAB_BOS_NODE || node->stat == MECAB_EOS_NODE) {
+         prev = NULL;
+         continue;
+      }
+      if (prev != NULL && prev->surface + prev->length == node->surface) {
+         pos = node->surface - str;
+         /* 数詞の後の複数字の語 (「二」+「十三」) と、数詞の前の複数字の語 (「十三」+「万」) を、数の途中の区切りとみなす */
+         is_junction = pos >= 3 && Mecab_starts_with_kanji_numeral(str, size, pos - 3, false) &&
+                       Mecab_starts_with_kanji_numeral(str, size, pos, false) &&
+                       ((Mecab_is_numeral_node(prev) && node->length > 3) ||
+                        (Mecab_is_numeral_node(node) && prev->length > 3));
+         if (is_junction) {
+            for (begin = pos; begin >= 3 && Mecab_starts_with_kanji_numeral(str, size, begin - 3, false); begin -= 3);
+            for (end = pos; Mecab_starts_with_kanji_numeral(str, size, end, false); end += 3);
+            for (; begin <= end; begin += 3)
+               boundaries->push_back(begin);
+         }
+      }
+      prev = node;
+   }
+
+   for (pos = 0; pos < size;) {
+      if (!Mecab_starts_with_kanji_numeral(str, size, pos, true)) {
+         pos++;
+         continue;
+      }
+      for (begin = pos, end = pos; Mecab_starts_with_kanji_numeral(str, size, end, true); end += 3);
+      hyphen_length = Mecab_hyphen_length_at(str, size, begin, true);
+      is_linked = hyphen_length > 0 && Mecab_ends_with_digit(str, size, begin - hyphen_length);
+      hyphen_length = Mecab_hyphen_length_at(str, size, end, false);
+      is_linked = is_linked || (hyphen_length > 0 && Mecab_starts_with_digit(str, size, end + hyphen_length));
+      if (is_linked) {
+         for (; begin <= end; begin += 3)
+            boundaries->push_back(begin);
+      }
+      pos = end;
+   }
+}
+
+/* 文を解析し、漢数字の並びを1字ずつに分ける必要があれば、その境目に境界制約を付けて解析し直す
+   OpenJTalk の Mecab_analysis() と、tsqyomi が使う候補解析の両方から呼び、同じ最良経路を返す */
+BOOL Mecab_parse_lattice_with_numeral_boundaries(void *tagger, void *lattice, const char *str)
+{
+   MeCab::Tagger *mecab_tagger = (MeCab::Tagger *) tagger;
+   MeCab::Lattice *mecab_lattice = (MeCab::Lattice *) lattice;
+   std::vector<size_t> boundaries;
+   size_t i;
+
+   mecab_lattice->set_sentence(str);
+   if (mecab_tagger->parse(mecab_lattice) == false)
+      return FALSE;
+   Mecab_collect_numeral_boundaries(mecab_lattice, &boundaries);
+   if (boundaries.empty())
+      return TRUE;
+
+   /* set_sentence() は前回の解析のノードと境界制約を消すので、文を設定し直してから制約を付ける */
+   mecab_lattice->set_sentence(str);
+   for (i = 0; i < boundaries.size(); i++)
+      mecab_lattice->set_boundary_constraint(boundaries[i], MECAB_TOKEN_BOUNDARY);
+   return mecab_tagger->parse(mecab_lattice) ? TRUE : FALSE;
+}
+
 BOOL Mecab_analysis(Mecab *m, const char *str)
 {
    if(m->model == NULL || m->tagger == NULL || m->lattice == NULL || str == NULL)
@@ -185,9 +322,7 @@ BOOL Mecab_analysis(Mecab *m, const char *str)
    MeCab::Tagger *tagger = (MeCab::Tagger *) m->tagger;
    MeCab::Lattice *lattice = (MeCab::Lattice *) m->lattice;
 
-   lattice->set_sentence(str);
-
-   if(tagger->parse(lattice) == false) {
+   if(Mecab_parse_lattice_with_numeral_boundaries(tagger, lattice, str) == FALSE) {
       lattice->clear();
       return FALSE;
    }
