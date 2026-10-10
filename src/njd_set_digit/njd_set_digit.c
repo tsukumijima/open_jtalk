@@ -2112,6 +2112,32 @@ static const char *njd_set_digit_rule_vertical_decimal_units[] = {
    NULL
 };
 
+static void normalize_old_place_characters(NJD *njd)
+{
+   NJDNode *node;
+   /* 大字の「拾」と旧字体の「萬」は位の表にないので、「十」「万」に置き換えて「拾万円」「一萬円」を位取りの1句で読む */
+   for (node = njd->head; node != NULL; node = node->next) {
+      /* 「十数」の「数」は助数詞の行で解析されて「十本」と同じく「ジュッスー」と促音化するので、位に続く数詞の「数」として扱う */
+      if (strcmp(NJDNode_get_string(node), "数") == 0 &&
+          strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) == 0 && node->prev != NULL &&
+          (strcmp(NJDNode_get_string(node->prev), "十") == 0 ||
+           strcmp(NJDNode_get_string(node->prev), "百") == 0 ||
+           strcmp(NJDNode_get_string(node->prev), "千") == 0)) {
+         NJDNode_set_pos_group1(node, NJD_SET_DIGIT_KAZU);
+         NJDNode_set_pos_group2(node, "*");
+      }
+      if (strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) != 0)
+         continue;
+      if (strcmp(NJDNode_get_string(node), "拾") == 0) {
+         NJDNode_set_string(node, "十");
+         NJDNode_set_orig(node, "十");
+      } else if (strcmp(NJDNode_get_string(node), "萬") == 0) {
+         NJDNode_set_string(node, "万");
+         NJDNode_set_orig(node, "万");
+      }
+   }
+}
+
 static int is_kanji_digit_or_small_place_string(NJDNode *node)
 {
    const char *str;
@@ -2509,6 +2535,7 @@ void njd_set_digit(NJD * njd)
    int find = 0;
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
    NJDNumberSequence *number_sequences;
+   normalize_old_place_characters(njd);
    set_vertical_decimal_points(njd);
    set_written_place_chain_rules(njd);
    /* 「3 本」の「ホン」を助数詞へ戻してから、「サンボン」の濁音化とアクセント結合を適用する */
@@ -2820,7 +2847,14 @@ void njd_set_digit(NJD * njd)
                if (strcmp(NJDNode_get_string(node->prev), njd_set_digit_rule_numeral_list4[i]) == 0) {
                   for (j = 0; njd_set_digit_rule_numeral_list5[j] != NULL; j++) {
                      if (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[j]) == 0) {
-                        NJDNode_set_chain_flag(node->prev, 0);
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+                        /* 「十数万円」の「数」は前の「十」と1つの数なので、「数」の前で句を切らない */
+                        if (!(strcmp(NJDNode_get_string(node->prev), "数") == 0 && node->prev->prev != NULL &&
+                              (strcmp(NJDNode_get_string(node->prev->prev), "十") == 0 ||
+                               strcmp(NJDNode_get_string(node->prev->prev), "百") == 0 ||
+                               strcmp(NJDNode_get_string(node->prev->prev), "千") == 0)))
+#endif
+                           NJDNode_set_chain_flag(node->prev, 0);
                         NJDNode_set_chain_flag(node, 1);
                         find = 1;
                         break;
@@ -2836,13 +2870,43 @@ void njd_set_digit(NJD * njd)
                      for (j = 0; njd_set_digit_rule_numeral_list4[j] != NULL; j++) {
                         if (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list4[j]) ==
                             0) {
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+                           /* 「十数万円」「十数人」の「数」は前の位と1つの数なので、「ジュースー」と句を続ける */
+                           if (strcmp(NJDNode_get_string(node), "数") == 0) {
+                              NJDNode_set_chain_flag(node, 1);
+                              break;
+                           }
+#endif
                            NJDNode_set_chain_flag(node, 0);
                            break;
                         }
                      }
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+                     /* 「百万円」「何百万円」「三千万円」の「十」「百」「千」に続く「万」以上の位は、同じ数として句を続ける */
+                     /* 助数詞の前で句の頭にされた「万」を、ここでつなぎ直す */
+                     if (i <= 2)
+                        for (j = 3; njd_set_digit_rule_numeral_list5[j] != NULL; j++)
+                           if (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[j]) == 0) {
+                              NJDNode_set_chain_flag(node, 1);
+                              break;
+                           }
+#endif
                      break;
                   }
                }
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+               /* 「数十万円」は「十万」が辞書の1語なので、「数」「何」「幾」に続く「十万」「百万」などの位で始まる数も句を続ける */
+               if ((strcmp(NJDNode_get_string(node->prev), "数") == 0 ||
+                    strcmp(NJDNode_get_string(node->prev), "何") == 0 ||
+                    strcmp(NJDNode_get_string(node->prev), "幾") == 0) &&
+                   strlen(NJDNode_get_string(node)) > 3)
+                  for (i = 0; i <= 2; i++)
+                     if (strncmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[i],
+                                 strlen(njd_set_digit_rule_numeral_list5[i])) == 0) {
+                        NJDNode_set_chain_flag(node, 1);
+                        break;
+                     }
+#endif
             }
          }
          if (search_numerative_class(njd_set_digit_rule_numeral_list8, node) == 1)
