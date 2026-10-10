@@ -670,6 +670,8 @@ static void convert_numerative_pron(const char *list[], NJDNode * node1, NJDNode
 static int identifier_numerical_reading(NJDNode *start, NJDNode *end);
 static int long_number_digit_reading(NJDNode *start, NJDNode *end);
 static int has_quantity_expression(NJDNode *start, NJDNode *node);
+static int is_number_hyphen(NJDNode *node);
+static int is_latin_word(NJDNode *node);
 #endif
 
 static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
@@ -757,8 +759,12 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
          if (is_decimal_digit(s))
             numerical_reading = -1;
          /* 「モハ205」は短い「ニヒャクゴ」の位取りにし、「3248」のように長い番号は桁読みにする */
-         else if (identifier_numerical_reading(s, final_digit))
+         else if (identifier_numerical_reading(s, final_digit)) {
             numerical_reading = 1;
+            /* 「COVID-19」「AB-12」の英字の語の後のハイフンは、休止を置かずに語と数を別のアクセント句で続けて読む (「コ＼ビッド」「ジューキュ＼ー」) */
+            if (s->prev != NULL && is_number_hyphen(s->prev) && is_latin_word(s->prev->prev))
+               NJDNode_set_pos_group3(s->prev, "数の区切り");
+         }
          /* 「5823901746283915」のように兆以上の位が要る長い数字列は、位取りが短い「1000000000000」を除いて桁読みにする */
          else if (long_number_digit_reading(s, final_digit))
             numerical_reading = -1;
