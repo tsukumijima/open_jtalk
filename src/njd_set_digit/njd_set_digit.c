@@ -2220,13 +2220,37 @@ static int day_word_digit(NJDNode *node)
    return -1;
 }
 
+static int counter_word_digit(NJDNode *node, const char **counter)
+{
+   static const char *digits[] = {"二", "三", "四", "五", "六", "七", "八", "九",
+                                  "２", "３", "４", "５", "６", "７", "８", "９", NULL};
+   static const char *counters[] = {"人", "日間", NULL};
+   const char *str = NJDNode_get_string(node);
+   int i, j;
+   /* MeCab が「二人」「八人」「三日間」のように、1桁の数と助数詞を1語にした語の数と助数詞を返す */
+   for (i = 0; digits[i] != NULL; i++) {
+      if (strncmp(str, digits[i], strlen(digits[i])) != 0)
+         continue;
+      for (j = 0; counters[j] != NULL; j++) {
+         if (strcmp(str + strlen(digits[i]), counters[j]) == 0) {
+            *counter = counters[j];
+            return i % 8 + 2;
+         }
+      }
+   }
+   return -1;
+}
+
 static int approximate_tail_digit(NJDNode *node)
 {
-   /* 後ろの数は、1桁の数に助数詞が続く形 (「5人」) か、辞書の1語の「三日」「５日」に限る */
+   const char *counter;
+   int digit;
+   /* 後ろの数は、1桁の数に助数詞が続く形 (「5人」) か、辞書の1語の「三日」「５日」「二人」「三日間」に限る */
    if (strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0)
       return node->next != NULL && strcmp(NJDNode_get_pos_group1(node->next), NJD_SET_DIGIT_KAZU) != 0 &&
              is_counter_after_digits(node->next) ? get_digit(node, 0) : -1;
-   return day_word_digit(node);
+   digit = counter_word_digit(node, &counter);
+   return digit > 0 ? digit : day_word_digit(node);
 }
 
 static void mark_approximate_number_commas(NJD *njd)
@@ -2258,8 +2282,12 @@ static void set_approximate_number_readings(NJD *njd)
 {
    static const char *digit_prons[] = {"ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"};
    static const char *digit_mora_prons[] = {"ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュー"};
+   /* 「人」の前の数の読み (「ヨニン」の「ヨ」) */
+   static const char *person_prons[] = {"ニ", "サン", "ヨ", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"};
+   static const char *person_mora_prons[] = {"ニ", "サン", "ヨ", "ゴ", "ロク", "ナナ", "ハチ", "キュー"};
    NJDNode *node, *first;
    NJDNode day;
+   const char *counter;
    char buff[MAXBUFLEN];
    int i, y;
    for (node = njd->head; node != NULL; node = node->next) {
@@ -2275,6 +2303,22 @@ static void set_approximate_number_readings(NJD *njd)
             snprintf(buff, sizeof(buff), "%sニチ", digit_prons[y - 2]);
             NJDNode_set_read(node->next, buff);
             snprintf(buff, sizeof(buff), "%sニチ", digit_mora_prons[y - 2]);
+            NJDNode_set_pron(node->next, buff);
+            NJDNode_set_mora_size(node->next, (int) strlen(buff) / 3);
+            NJDNode_set_acc(node->next, 0);
+         }
+         /* 1語の「二人」(「フタリ」)、「八人」、「三日間」(「ミッカカン」) も、概数では助数詞の漢語の読みの「ニニン」「ハチニン」「サンニチカン」に直す */
+         y = counter_word_digit(node->next, &counter);
+         if (y > 0) {
+            if (strcmp(counter, "人") == 0) {
+               snprintf(buff, sizeof(buff), "%sニン", person_prons[y - 2]);
+               NJDNode_set_read(node->next, buff);
+               snprintf(buff, sizeof(buff), "%sニン", person_mora_prons[y - 2]);
+            } else {
+               snprintf(buff, sizeof(buff), "%sニチカン", digit_prons[y - 2]);
+               NJDNode_set_read(node->next, buff);
+               snprintf(buff, sizeof(buff), "%sニチカン", digit_mora_prons[y - 2]);
+            }
             NJDNode_set_pron(node->next, buff);
             NJDNode_set_mora_size(node->next, (int) strlen(buff) / 3);
             NJDNode_set_acc(node->next, 0);
