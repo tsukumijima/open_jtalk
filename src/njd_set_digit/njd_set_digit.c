@@ -1144,6 +1144,36 @@ static int number_size(NJDNode *start, NJDNode *end)
    return size;
 }
 
+static int follows_phone_service_name(NJDNode *start)
+{
+   static const char *services[] = {"番号案内", "時報", "天気予報", "伝言", "伝言ダイヤル", "災害用伝言ダイヤル",
+                                    "警察", "消防", "救急", NULL};
+   NJDNode *node = start->prev;
+   char buff[MAXBUFLEN];
+   int i;
+   /* 「番号案内は104です」「時報は117」のように、その番号のサービスの名前が助詞を挟んで前にあるかを見る */
+   while (node != NULL && (strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0 ||
+                           (strcmp(NJDNode_get_pos(node), "助詞") == 0 &&
+                            (strcmp(NJDNode_get_string(node), "は") == 0 ||
+                             strcmp(NJDNode_get_string(node), "が") == 0 ||
+                             strcmp(NJDNode_get_string(node), "の") == 0 ||
+                             strcmp(NJDNode_get_string(node), "も") == 0))))
+      node = node->prev;
+   if (node == NULL)
+      return 0;
+   for (i = 0; services[i] != NULL; i++) {
+      if (strcmp(NJDNode_get_string(node), services[i]) == 0)
+         return 1;
+      /* 「番号」「案内」のように2語に分けて解析されたサービスの名前もつなげて見る */
+      if (node->prev != NULL) {
+         snprintf(buff, sizeof(buff), "%s%s", NJDNode_get_string(node->prev), NJDNode_get_string(node));
+         if (strcmp(buff, services[i]) == 0)
+            return 1;
+      }
+   }
+   return 0;
+}
+
 static int has_phone_context(NJDNode *start, NJDNode *end)
 {
    NJDNode *node;
@@ -1164,10 +1194,13 @@ static int has_phone_context(NJDNode *start, NJDNode *end)
       }
       if (node != NULL &&
           (strcmp(NJDNode_get_string(node), "電話") == 0 || strcmp(NJDNode_get_string(node), "通報") == 0 ||
+           strcmp(NJDNode_get_string(node), "伝言") == 0 ||
            strcmp(NJDNode_get_string(node), "連絡") == 0 || strcmp(NJDNode_get_string(node), "ダイヤル") == 0 ||
            strcmp(NJDNode_get_string(node), "相談") == 0 || strcmp(NJDNode_get_string(node), "コール") == 0 ||
            (strcmp(NJDNode_get_pos(node), "動詞") == 0 &&
             (strcmp(NJDNode_get_orig(node), "かける") == 0 || strcmp(NJDNode_get_orig(node), "掛ける") == 0))))
+         return 1;
+      if (follows_phone_service_name(start))
          return 1;
    }
    /* 「市外局番213の、486ー2435」「電話 03 1234 5678」は区切りと数字をたどり、電話番号の最後の組まで文脈を保つ */
