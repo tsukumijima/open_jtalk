@@ -404,6 +404,75 @@ static void convert_digit_pron(const char *list[], NJDNode * node)
 }
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+/* 日付の各欄は算用数字だけを対象とし、漢数字の期間や語の一部まで暦へ読み替えない */
+static NJDNode *calendar_field(NJDNode *start, const char *unit, int max_digits, int *value)
+{
+   NJDNode *node;
+   const char *str, *digits = "０１２３４５６７８９";
+   int count = 0, i, found;
+   *value = 0;
+   for (node = start; node != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_pos_group3(node), "読み保護") == 0)
+         return NULL;
+      str = NJDNode_get_string(node);
+      while (*str != '\0') {
+         if (strcmp(str, unit) == 0 && count > 0)
+            return node;
+         found = 0;
+         for (i = 0; i < 10; i++) {
+            if (strncmp(str, digits + 3 * i, 3) == 0) {
+               if (++count > max_digits)
+                  return NULL;
+               *value = *value * 10 + i;
+               str += 3;
+               found = 1;
+               break;
+            }
+         }
+         if (!found)
+            return NULL;
+      }
+   }
+   return NULL;
+}
+
+static void remove_calendar_leading_zeros(NJD *njd)
+{
+   NJDNode *start, *year_node, *month_node, *day_node, *next, *zero;
+   int year, month, day, max_day;
+   for (start = njd->head; start != NULL; start = next) {
+      next = start->next;
+      if (start->prev != NULL &&
+          (get_digit(start->prev, 0) >= 0 ||
+           strcmp(NJDNode_get_string(start->prev), "第") == 0))
+         continue;
+      year_node = calendar_field(start, "年", 4, &year);
+      if (year_node == NULL || year < 1000)
+         continue;
+      month_node = calendar_field(year_node->next, "月", 2, &month);
+      if (month_node == NULL || month < 1 || month > 12)
+         continue;
+      day_node = calendar_field(month_node->next, "日", 2, &day);
+      max_day = month == 2 ? (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) ? 29 : 28) :
+         (month == 4 || month == 6 || month == 9 || month == 11 ? 30 : 31);
+      if (day_node == NULL || day < 1 || day > max_day)
+         continue;
+      if (day_node->next != NULL &&
+          (strncmp(NJDNode_get_string(day_node->next), "間", strlen("間")) == 0 ||
+           strcmp(NJDNode_get_string(day_node->next), "目") == 0 ||
+           strcmp(NJDNode_get_string(day_node->next), "ほど") == 0))
+         continue;
+      /* 「2008年05月05日」の0は桁を揃える表記なので外し、月日を既存の「ゴガツ」「イツカ」の処理へ渡す */
+      zero = year_node->next;
+      if (get_digit(zero, 0) == 0)
+         NJD_remove_node(njd, zero);
+      zero = month_node->next;
+      if (get_digit(zero, 0) == 0)
+         NJD_remove_node(njd, zero);
+      next = day_node->next;
+   }
+}
+
 static int calendar_month_number(NJDNode *counter)
 {
    NJDNode *node, *start = counter->prev;
@@ -2818,6 +2887,7 @@ void njd_set_digit(NJD * njd)
    set_vertical_decimal_points(njd);
    set_written_place_chain_rules(njd);
    mark_written_group_quantities(njd);
+   remove_calendar_leading_zeros(njd);
    /* 「3 本」の「ホン」を助数詞へ戻してから、「サンボン」の濁音化とアクセント結合を適用する */
    restore_counter_features(njd);
    number_sequences = prepare_number_sequences(njd);
