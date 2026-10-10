@@ -785,6 +785,14 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
    }
 }
 
+/* 8 の後で「ハッ」と「ハチ」の両方に読める助数詞のうち、「ハチ」を既定にするもの */
+static const char *njd_set_digit_rule_hachi_counters[] = {
+   "か国", "か所", "か月", "か条", "件", "体", "個", "分", "品", "回", "地区", "地点", "坪", "基",
+   "局", "巻", "店舗", "曲", "期", "校", "桁", "機", "歩", "版", "票", "箱", "粒", "級", "編", "羽",
+   "貫", "貫目", "軒", "階", "騎",
+   NULL
+};
+
 static int is_sokuon_odaka_counter(NJDNode *counter)
 {
    static const char *counters[] = {
@@ -1947,6 +1955,10 @@ void njd_set_digit(NJD * njd)
              /* 一般名詞や接尾辞として解析された助数詞も、小数の桁の後でなければ助数詞として扱う */
              || (is_decimal_digit(node->prev) == 0 &&
                  search_numerative_class(njd_set_digit_rule_counter_words, node))) {
+            /* 「8個」「8回」の「ハッ」と、それに伴う助数詞の濁音・半濁音は後で戻すことがあるので、変える前の発音を控える */
+            char counter_pron_before[64];
+            strncpy(counter_pron_before, NJDNode_get_pron(node), sizeof(counter_pron_before) - 1);
+            counter_pron_before[sizeof(counter_pron_before) - 1] = '\0';
             /* 数詞に続く「部屋」は「ヘヤ」、相撲部屋などの複合語は辞書の「ベヤ」を使う */
             if (strcmp(NJDNode_get_string(node), "部屋") == 0 &&
                 strcmp(NJDNode_get_read(node), "ベヤ") == 0) {
@@ -1971,9 +1983,8 @@ void njd_set_digit(NJD * njd)
                NJDNode_set_mora_size(node, 1);
                convert_digit_pron(njd_set_digit_rule_conv_table1e, node->prev);
             }
-            /* 「三階級」の「階」は、一・六・十・百だけを促音化する */
-            else if (strcmp(NJDNode_get_string(node), "階") == 0 && node->next != NULL &&
-                     strcmp(NJDNode_get_string(node->next), "級") == 0)
+            /* 「階」と「三階級」の「階」は、一・六・十・百だけを促音化し、建物の「8階」は「ハッカイ」でなく「ハチカイ」と読む */
+            else if (strcmp(NJDNode_get_string(node), "階") == 0)
                convert_digit_pron(njd_set_digit_rule_conv_table1l, node->prev);
             /* 「カラット」は十と百だけを促音化する */
             else if (strcmp(NJDNode_get_string(node), "カラット") == 0)
@@ -2088,6 +2099,36 @@ void njd_set_digit(NJD * njd)
                convert_numerative_pron(njd_set_digit_rule_conv_table2e, node->prev, node);
             else if (search_numerative_class(njd_set_digit_rule_numerative_class2f, node) == 1)
                convert_numerative_pron(njd_set_digit_rule_conv_table2f, node->prev, node);
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+            /* 8 の後で促音にも読める助数詞は、既定を促音にしない「ハチ」にする (「ハチコ」「ハチカイ」「ハチフン」) */
+            /* 促音の方が明らかに多い「本」(「ハッポン」) は表に入れず、促音の形しかない「発」「匹」なども変えない */
+            if (strcmp(NJDNode_get_string(node->prev), "八") == 0 &&
+                strcmp(NJDNode_get_pron(node->prev), "ハッ") == 0 &&
+                search_numerative_class(njd_set_digit_rule_hachi_counters, node) == 1) {
+               NJDNode_set_pron(node->prev, "ハチ");
+               NJDNode_set_mora_size(node->prev, 2);
+               NJDNode_set_pron(node, counter_pron_before);
+            }
+            /* tsqyomi が「十八歩」の「歩」に促音の後の「ポ」の行を選ぶと、「ハチ」の後でも半濁音が残るので清音の「ホ」へ戻す */
+            if (strcmp(NJDNode_get_string(node->prev), "八") == 0 &&
+                strcmp(NJDNode_get_pron(node->prev), "ハチ") == 0 &&
+                search_numerative_class(njd_set_digit_rule_hachi_counters, node) == 1) {
+               static const char *handakuon[] = {"パ", "ピ", "プ", "ペ", "ポ"};
+               static const char *seion[] = {"ハ", "ヒ", "フ", "ヘ", "ホ"};
+               const char *pron = NJDNode_get_pron(node);
+               char buff[64];
+               int i;
+               for (i = 0; i < 5; i++) {
+                  if (strncmp(pron, handakuon[i], strlen(handakuon[i])) == 0 &&
+                      strlen(pron) < sizeof(buff)) {
+                     strcpy(buff, seion[i]);
+                     strcat(buff, pron + strlen(handakuon[i]));
+                     NJDNode_set_pron(node, buff);
+                     break;
+                  }
+               }
+            }
+#endif
             /* modify accent phrase */
             NJDNode_set_chain_flag(node->prev, 0);
             NJDNode_set_chain_flag(node, 1);
