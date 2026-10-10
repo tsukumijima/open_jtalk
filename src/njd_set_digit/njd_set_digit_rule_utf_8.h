@@ -206,7 +206,8 @@ static const char *njd_set_digit_rule_numeral_list9[] = {
 };
 
 static const char *njd_set_digit_rule_numeral_list10[] = {
-   "千", "兆", NULL
+   /* 「一京」「八京」も「一兆」と同じく「イッケイ」「ハッケイ」と促音にする */
+   "千", "兆", "京", NULL
 };
 
 static const char *njd_set_digit_rule_numeral_list11[] = {
