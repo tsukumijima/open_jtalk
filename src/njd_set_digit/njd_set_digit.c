@@ -1373,11 +1373,36 @@ static int prefers_positional_number(NJDNode *start, NJDNode *end, int size)
    return positional_number_mora_size(start, end) <= size * 2 + 3;
 }
 
+static int is_latin_word(NJDNode *node)
+{
+   const unsigned char *str;
+   if (node == NULL)
+      return 0;
+   str = (const unsigned char *) NJDNode_get_string(node);
+   if (*str == '\0')
+      return 0;
+   while (*str != '\0') {
+      /* 全角の「Ａ」〜「Ｚ」と「ａ」〜「ｚ」は、UTF-8 で EF BC A1〜BA と EF BD 81〜9A になる */
+      if (str[0] == 0xEF && str[1] == 0xBC && str[2] >= 0xA1 && str[2] <= 0xBA)
+         str += 3;
+      else if (str[0] == 0xEF && str[1] == 0xBD && str[2] >= 0x81 && str[2] <= 0x9A)
+         str += 3;
+      else if ((str[0] >= 'A' && str[0] <= 'Z') || (str[0] >= 'a' && str[0] <= 'z'))
+         str++;
+      else
+         return 0;
+   }
+   return 1;
+}
+
 static int identifier_numerical_reading(NJDNode *start, NJDNode *end)
 {
    NJDNode *node;
    int size = 0;
-   if (!has_identifier_context(start))
+   /* 「型番AB-1200」「AB-12」のように英字とハイフンに続く型番も、位取りで短く読めれば「センニヒャク」と位取りで読む */
+   /* ハイフンの後の数字は上流の判定で桁読みになるので、英字の語の直後のハイフンを型番の文脈として扱う */
+   if (!has_identifier_context(start) &&
+       !(start->prev != NULL && is_number_hyphen(start->prev) && is_latin_word(start->prev->prev)))
       return 0;
    for (node = start; ; node = node->next) {
       if (number_digit(node) < 0)
