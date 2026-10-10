@@ -477,7 +477,7 @@ static const char *njd_set_digit_rule_numerative_class2b[] = {
    /* from paper */
    "分", "版", "敗", "発", "拍", "鉢",
    /* from dictionary */
-   "波", "派", "泊", "犯", "班", "品", "分間", "片", "篇", "編", "辺", "遍", "歩", "報",
+   "波", "派", "泊", "犯", "班", "品", "分間", "片", "篇", "編", "辺", "歩", "報",
    "方",
    NULL
 };
@@ -501,6 +501,8 @@ static const char *njd_set_digit_rule_numerative_class2c[] = {
    "本", "匹", "疋", "票", "俵", "箱",
    /* from dictionary */
    "本立て", "杯", "針",
+   /* 回数の「遍」は「サンベン」「ナンベン」「センベン」と濁る (「三編」の「サンペン」とは違う) */
+   "遍",
    NULL
 };
 
