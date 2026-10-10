@@ -672,6 +672,7 @@ static int long_number_digit_reading(NJDNode *start, NJDNode *end);
 static int has_quantity_expression(NJDNode *start, NJDNode *node);
 static int is_number_hyphen(NJDNode *node);
 static int is_latin_word(NJDNode *node);
+static NJDNode *next_phone_group(NJDNode *end, int phone_context, int postal_context);
 #endif
 
 static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
@@ -1215,7 +1216,9 @@ static int has_phone_context(NJDNode *start, NJDNode *end)
    /* 「市外局番213の、486ー2435」「電話 03 1234 5678」は区切りと数字をたどり、電話番号の最後の組まで文脈を保つ */
    for (node = start->prev; node != NULL && distance < 16; node = node->prev, distance++) {
       /* 見出しが「電話」だけのときは、「電話は100ある」のような3桁以下の数を数量として位取りで読む */
-      if (strcmp(NJDNode_get_string(node), "電話") == 0 && number_size(start, end) <= 3)
+      /* 「電話は03の1234の5678」のように後ろに番号の組が続くときは、最初の組が3桁以下でも電話番号として読む */
+      if (strcmp(NJDNode_get_string(node), "電話") == 0 && number_size(start, end) <= 3 &&
+          next_phone_group(end, 1, 0) == NULL)
          break;
       if (strcmp(NJDNode_get_string(node), "電話") == 0 ||
           strcmp(NJDNode_get_string(node), "電話番号") == 0 ||
