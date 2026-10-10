@@ -234,10 +234,25 @@ static bool Mecab_is_numeral_node(const MeCab::Node *node)
    return node->feature != NULL && strncmp(node->feature, "名詞,数,", strlen("名詞,数,")) == 0;
 }
 
+/* 語の表層が、位の字を含む漢数字だけでできているかを返す */
+static bool Mecab_is_kanji_numeral_word(const char *str, size_t size, const MeCab::Node *node)
+{
+   const size_t begin = node->surface - str;
+   size_t pos;
+   if (node->length == 0 || node->length % 3 != 0)
+      return false;
+   for (pos = begin; pos < begin + node->length; pos += 3)
+      if (!Mecab_starts_with_kanji_numeral(str, size, pos, false))
+         return false;
+   return true;
+}
+
 /* 漢数字の並びを、算用数字と同じく1字ずつの形態素に分ける必要がある並びを探し、各字の境目の位置を返す
    1. 「二十三」を「二」+「十三」、「二十八時間」を「二」+「十」+「八時間」のように、数詞の後で並びの途中から始まる語を選んだ並び
       「十三」「八時間」「十六日」は辞書の語なので、数の一部として読むと区切りが崩れ、位取りとアクセントが算用数字と食い違う
       並びの先頭から始まる「八百屋」「二十歳」「五十嵐」のような語は、数ではない語として残す
+      区切るのは漢数字だけでできた語の並びと、その後ろの語の先頭の漢数字に限り、「唯一」+「一人」の「唯一」や、
+      ユーザー辞書の「正一」+「一万円」の「正一」のように、漢数字以外の字を含む語の中には区切りを入れない
    2. 「〇三-九九-〇〇」のように、ハイフンを挟んで数字とつながる桁読みの漢数字の並び
       電話番号の組の「九九」を掛け算の「クク」、「〇〇〇」をハイフンとまとめた1つの記号として解析させない */
 static void Mecab_collect_numeral_boundaries(MeCab::Lattice *lattice, std::vector<size_t> *boundaries)
@@ -245,7 +260,7 @@ static void Mecab_collect_numeral_boundaries(MeCab::Lattice *lattice, std::vecto
    const char *str = lattice->sentence();
    const size_t size = lattice->size();
    const MeCab::Node *node, *prev = NULL;
-   size_t begin, end, pos, hyphen_length;
+   size_t begin, end, pos, hyphen_length, chain_begin = 0;
    bool is_junction, is_linked;
 
    for (node = lattice->bos_node(); node != NULL; node = node->next) {
@@ -253,20 +268,25 @@ static void Mecab_collect_numeral_boundaries(MeCab::Lattice *lattice, std::vecto
          prev = NULL;
          continue;
       }
+      pos = node->surface - str;
       if (prev != NULL && prev->surface + prev->length == node->surface) {
-         pos = node->surface - str;
          /* 数詞の後の複数字の語 (「二」+「十三」) と、数詞の前の複数字の語 (「十三」+「万」) を、数の途中の区切りとみなす */
-         is_junction = pos >= 3 && Mecab_starts_with_kanji_numeral(str, size, pos - 3, false) &&
+         is_junction = Mecab_is_kanji_numeral_word(str, size, prev) &&
                        Mecab_starts_with_kanji_numeral(str, size, pos, false) &&
                        ((Mecab_is_numeral_node(prev) && node->length > 3) ||
                         (Mecab_is_numeral_node(node) && prev->length > 3));
          if (is_junction) {
-            for (begin = pos; begin >= 3 && Mecab_starts_with_kanji_numeral(str, size, begin - 3, false); begin -= 3);
-            for (end = pos; Mecab_starts_with_kanji_numeral(str, size, end, false); end += 3);
-            for (; begin <= end; begin += 3)
+            /* 前は漢数字だけの語が続く範囲の先頭から、後ろはこの語の中の先頭の漢数字の範囲までを1字ずつに分ける */
+            for (end = pos; end < pos + node->length && Mecab_starts_with_kanji_numeral(str, size, end, false); end += 3);
+            for (begin = chain_begin; begin <= end; begin += 3)
                boundaries->push_back(begin);
          }
       }
+      /* 漢数字だけの語が隣り合って続く範囲の先頭を覚えておく */
+      if (Mecab_is_kanji_numeral_word(str, size, node) &&
+          (prev == NULL || prev->surface + prev->length != node->surface ||
+           !Mecab_is_kanji_numeral_word(str, size, prev)))
+         chain_begin = pos;
       prev = node;
    }
 
