@@ -2210,6 +2210,27 @@ static void set_fraction_readings_of_fun_words(NJD *njd)
    }
 }
 
+static void set_kurai_after_day_words(NJD *njd)
+{
+   NJDNode *node;
+   const char *str;
+   size_t length;
+   /* 「十日位」の「十日」は地名の行に取られて接尾辞の「イ」が続くので、日数の語の後の「位」を程度の「クライ」に直す */
+   for (node = njd->head; node != NULL && node->next != NULL; node = node->next) {
+      str = NJDNode_get_string(node);
+      length = strlen(str);
+      if ((!starts_with_digit_character(node) && strncmp(str, "十", strlen("十")) != 0) ||
+          length < strlen(NJD_SET_DIGIT_NICHI) ||
+          strcmp(str + length - strlen(NJD_SET_DIGIT_NICHI), NJD_SET_DIGIT_NICHI) != 0 ||
+          strcmp(NJDNode_get_string(node->next), "位") != 0 || strcmp(NJDNode_get_read(node->next), "イ") != 0)
+         continue;
+      NJDNode_set_read(node->next, "クライ");
+      NJDNode_set_pron(node->next, "クライ");
+      NJDNode_set_mora_size(node->next, 3);
+      NJDNode_set_acc(node->next, 0);
+   }
+}
+
 static int is_kango_after_one(NJDNode *node)
 {
    /* 「一」と分けて解析されても「一」を促音にする漢語は、1字の接尾辞 (「一審」「一国」「一書」「1死」「1速」「1庁」) と次の語に限る */
@@ -2286,6 +2307,8 @@ void njd_set_digit(NJD * njd)
    number_sequences = prepare_number_sequences(njd);
    mark_number_list_separators(njd);
    mark_approximate_number_commas(njd);
+   /* 「十日位」は数詞の語を含まず、後の数詞の処理まで進まないので、ここで「位」を直す */
+   set_kurai_after_day_words(njd);
    /* 「070」のように全桁を番号として保護した文でも、通常の数詞処理の後で品詞を戻す */
    if (number_sequences != NULL)
       find = 1;
