@@ -1079,6 +1079,10 @@ static int has_postal_context(NJDNode *start)
       if (strcmp(NJDNode_get_string(node), "〒") == 0 ||
           strcmp(NJDNode_get_string(node), "郵便番号") == 0)
          return 1;
+      /* 「郵便番号102-8661」で「郵便」「番号」が別々に解析されても、隣り合う語を郵便番号の見出しとして扱う */
+      if (strcmp(NJDNode_get_string(node), "番号") == 0 && node->prev != NULL &&
+          strcmp(NJDNode_get_string(node->prev), "郵便") == 0)
+         return 1;
       if (strcmp(NJDNode_get_string(node), "。") == 0)
          break;
    }
@@ -1156,6 +1160,30 @@ static void set_phone_digit_reading(NJDNode *start, NJDNode *end, int first_grou
       if (group_index % 2 == 1)
          NJDNode_set_acc(node->prev, 3);
       group_index++;
+   }
+}
+
+static void set_postal_zero_reading(NJDNode *start, NJDNode *end)
+{
+   NJDNode *node;
+   int has_nonzero = 0, digit;
+   /* 郵便番号の「102」「100」は、0以外の数字の後に続く0を「マル」と読み、組の頭の「0001」の0は「ゼロ」のまま読む */
+   for (node = start; node != end->next; node = node->next) {
+      NJDNode_set_pos_group1(node, NJD_SET_DIGIT_KAZU);
+      digit = number_digit(node);
+      NJDNode_set_pos_group1(node, "一般");
+      if (digit != 0) {
+         has_nonzero = 1;
+         continue;
+      }
+      if (has_nonzero == 0)
+         continue;
+      NJDNode_set_read(node, "マル");
+      NJDNode_set_pron(node, "マル");
+      NJDNode_set_acc(node, 0);
+      /* 「イチマル」は2桁の組で「イチマ＼ル」にする */
+      if (node != start && NJDNode_get_chain_flag(node) == 1)
+         NJDNode_set_acc(node->prev, 3);
    }
 }
 
@@ -1540,16 +1568,31 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       /* 「〒123-4567」「123-4567」は3桁と4桁を別々に数え、ハイフンで休止するが、助数詞が続く「価格は123-4567円」は通常の数量として扱う */
       else if (groups == 2 && size[0] == 3 && size[1] == 4 &&
                !has_quantity_suffix &&
-               (has_postal_context(node) || !has_identifier_context(node))) {
+               (postal_context || !has_identifier_context(node))) {
          for (groups = 0; groups < 2; groups++) {
-            if (protect_number_sequence(&sequences, start[groups], end[groups]))
+            if (protect_number_sequence(&sequences, start[groups], end[groups])) {
                set_phone_digit_reading(start[groups], end[groups], 0);
+               if (postal_context)
+                  set_postal_zero_reading(start[groups], end[groups]);
+            }
          }
          for (separator = end[0]->next; separator != start[1]; separator = separator->next) {
             if (is_number_hyphen(separator) || strcmp(NJDNode_get_string(separator), "・") == 0) {
-               NJDNode_set_pron(separator, "、");
-               NJDNode_set_mora_size(separator, 0);
-               NJDNode_set_chain_flag(separator, 0);
+               /* 「〒102-8661」は郵便番号の読み方で、区切りを休止でなく「イチマルニーノ」の「ノ」と読む */
+               if (postal_context) {
+                  NJDNode_set_pos(separator, "助詞");
+                  NJDNode_set_pos_group1(separator, "連体化");
+                  NJDNode_set_read(separator, "ノ");
+                  NJDNode_set_pron(separator, "ノ");
+                  NJDNode_set_acc(separator, 1);
+                  NJDNode_set_mora_size(separator, 1);
+                  NJDNode_set_chain_rule(separator, "助動詞%F2@0/助詞%F2@0/動詞%F2@1/形容詞%F1");
+                  NJDNode_set_chain_flag(separator, 1);
+               } else {
+                  NJDNode_set_pron(separator, "、");
+                  NJDNode_set_mora_size(separator, 0);
+                  NJDNode_set_chain_flag(separator, 0);
+               }
             }
          }
          node = end[1];
