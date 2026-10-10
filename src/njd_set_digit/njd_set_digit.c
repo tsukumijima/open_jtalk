@@ -1330,7 +1330,7 @@ static void set_phone_digit_reading(NJDNode *start, NJDNode *end, int first_grou
    };
    static const int accents[] = {1, 2, 1, 0, 1, 1, 1, 1, 1, 1};
    NJDNode *node;
-   int digit, index = 0, group_index = 0;
+   int digit, previous_digit = 0, index = 0, group_index = 0;
    int total = number_size(start, end);
    int second_group_size = first_group_size == 4 ? 3 : 4;
    int group_size = first_group_size > 0 ? first_group_size : total;
@@ -1347,12 +1347,17 @@ static void set_phone_digit_reading(NJDNode *start, NJDNode *end, int first_grou
       NJDNode_set_pos_group1(node, "一般");
       NJDNode_set_read(node, (char *) readings[digit]);
       NJDNode_set_pron(node, (char *) readings[digit]);
-      /* 3桁の組の真ん中の0は、部屋番号と同じく「マル」と読む (「104」は「イチマルヨン」、「205」は「ニーマルゴー」) */
-      /* 組の先頭と末尾の0 (「110」「070」) と、4桁の組の0は「ゼロ」のまま読む */
-      if (digit == 0 && group_size == 3 && group_index == 1) {
-         NJDNode_set_read(node, "マル");
-         NJDNode_set_pron(node, "マル");
+      /* 3桁の組の真ん中の0は、前後が0以外のときだけ部屋番号と同じく「マル」と読む (「104」は「イチマルヨン」、「802」は「ハチマルニー」) */
+      /* 0が続く「500」「009」と、組の先頭と末尾の0 (「110」「070」)、4桁の組の0は「ゼロ」のまま読む */
+      if (digit == 0 && group_size == 3 && group_index == 1 && previous_digit != 0) {
+         NJDNode_set_pos_group1(node->next, NJD_SET_DIGIT_KAZU);
+         if (number_digit(node->next) != 0) {
+            NJDNode_set_read(node, "マル");
+            NJDNode_set_pron(node, "マル");
+         }
+         NJDNode_set_pos_group1(node->next, "一般");
       }
+      previous_digit = digit;
       NJDNode_set_mora_size(node, 2);
       NJDNode_set_acc(node, accents[digit]);
       NJDNode_set_chain_rule(node, "C5");
@@ -1831,9 +1836,14 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
          continue;
       }
       /* 「郵便番号1234567」は休止のない3-4の組として桁読みする */
+      /* 0は区切りのある「〒100-0001」と同じく、組ごとに郵便番号の読み方で「マル」にする */
       else if (groups == 1 && size[0] == 7 && postal_context && !has_quantity_suffix) {
-         if (protect_number_sequence(&sequences, node, end[0]))
+         if (protect_number_sequence(&sequences, node, end[0])) {
             set_phone_digit_reading(node, end[0], 3);
+            next = node->next->next;
+            set_postal_zero_reading(node, next);
+            set_postal_zero_reading(next->next, end[0]);
+         }
       }
       /* 「01号室」「02番」は全桁を番号として保ち、「03本」「01個」「04人」は末尾を通常の助数詞処理に渡して「サンボン」「イッコ」「ヨニン」を作る */
       else if (size[0] > 1 && number_digit(node) == 0) {
