@@ -1895,7 +1895,11 @@ void njd_set_digit(NJD * njd)
                NJDNode_set_pron(node, "コク");
             }
             /* convert digit pron */
-            if (strcmp(NJDNode_get_string(node), "分") == 0 && node->next != NULL &&
+            if (strcmp(NJDNode_get_string(node), "分") == 0 &&
+                strcmp(NJDNode_get_read(node), "ブン") == 0) {
+               /* 分数の分母の「ブン」の前では、時間量の「ヒャップン」「ロップン」のように数詞を促音化しない (「ヒャクブンノイチ」) */
+            }
+            else if (strcmp(NJDNode_get_string(node), "分") == 0 && node->next != NULL &&
                 strcmp(NJDNode_get_string(node->next), "袖") == 0) {
                /* 「七分袖」の「分」は時間の「フン」ではなく割合の「ブ」と読み、数詞は「シ」「シチ」「ク」の形を使う */
                NJDNode_set_read(node, "ブ");
@@ -1982,14 +1986,15 @@ void njd_set_digit(NJD * njd)
             if (uses_native_one_two(node)) {
                /* 「一箱」の「ヒト」のように和語で数える場合は、助数詞を半濁音や濁音に変えない (「ヒトハコ」) */
             } else if ((strcmp(NJDNode_get_string(node), "分") == 0 &&
-                        strcmp(NJDNode_get_read(node), "ブ") == 0) ||
+                        (strcmp(NJDNode_get_read(node), "ブ") == 0 ||
+                         strcmp(NJDNode_get_read(node), "ブン") == 0)) ||
                        (strcmp(NJDNode_get_string(node), "階") == 0 && node->next != NULL &&
                         strcmp(NJDNode_get_string(node->next), "級") == 0) ||
                        (strcmp(NJDNode_get_string(node), "波") == 0 &&
                         strcmp(NJDNode_get_string(node->prev), "八") == 0) ||
                        (strcmp(NJDNode_get_string(node), "鉢") == 0 &&
                         strcmp(NJDNode_get_string(node->prev), "四") == 0)) {
-               /* 「一分袖」の「ブ」、「三階級」の「カイ」、「八波」の「ハ」、「四鉢」の「ハチ」は、助数詞を半濁音や濁音に変えない */
+               /* 「一分袖」の「ブ」、分数の「ブン」、「三階級」の「カイ」、「八波」の「ハ」、「四鉢」の「ハチ」は、助数詞を半濁音や濁音に変えない */
             }
             /* 「袋」は十の後だけ「プクロ」と半濁音にする */
             else if (strcmp(NJDNode_get_string(node), "袋") == 0)
