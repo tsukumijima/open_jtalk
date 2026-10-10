@@ -1126,15 +1126,18 @@ static int is_special_phone_number(NJDNode *start, NJDNode *end)
    int value = 0, size = 0, digit;
    size_t i;
    /* 番号案内・警察・故障受付・電報・時報・海上保安・消防・災害用伝言ダイヤル・天気予報・番号の通知・消費者ホットライン・児童相談の、広く知られた 1XY の番号 */
+   /* 数字の並びごとに呼ばれるので、「09012345678」のような長い並びで値を組み立てて int の範囲を超えないよう、先に3桁かを確かめる */
    for (node = start; node != end->next; node = node->next) {
-      digit = number_digit(node);
-      if (digit < 0)
+      if (number_digit(node) < 0)
          return 0;
-      value = value * 10 + digit;
       size++;
    }
    if (size != 3)
       return 0;
+   for (node = start; node != end->next; node = node->next) {
+      digit = number_digit(node);
+      value = value * 10 + digit;
+   }
    for (i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
       if (value == numbers[i])
          return 1;
