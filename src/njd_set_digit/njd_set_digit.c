@@ -135,6 +135,39 @@ static int is_comma(const char *str)
    }
 }
 
+static int number_digit(NJDNode *node);
+
+/* 「1.5」の小数点は後ろに数字が続き、「03-1234-5678.」「一〇一.」の文末の「.」は句点として読む */
+static int is_decimal_point(NJDNode *node)
+{
+   return node != NULL && is_period(NJDNode_get_string(node)) && number_digit(node->next) >= 0;
+}
+
+/* 「1,050」の桁区切りは後ろに数字が続き、「一〇一,」「四〇五,電話」の句の終わりの「,」は読点として読む */
+static int is_digit_group_comma(NJDNode *node)
+{
+   return node != NULL && is_comma(NJDNode_get_string(node)) && number_digit(node->next) >= 0;
+}
+
+static int is_kanji_digit_string(NJDNode *node)
+{
+   const char *str;
+   if (node == NULL)
+      return 0;
+   str = NJDNode_get_string(node);
+   return strlen(str) == 3 && strstr("〇一二三四五六七八九", str) != NULL;
+}
+
+/* 「三〇九,三〇八」のように「〇」を書いた漢数字は桁読みの表記なので、後ろの「,」を3桁区切りとみなさない */
+static int has_written_zero(NJDNode *start, NJDNode *end)
+{
+   NJDNode *node;
+   for (node = start; node != end->next; node = node->next)
+      if (strcmp(NJDNode_get_string(node), "〇") == 0)
+         return 1;
+   return 0;
+}
+
 static int get_digit_sequence_score(NJDNode * start, NJDNode * end)
 {
    const char *buff_pos_group1 = NULL;
@@ -212,7 +245,7 @@ static int get_digit_sequence_score(NJDNode * start, NJDNode * end)
                score -= 2;
          } else if (strcmp(buff_string, NJD_SET_DIGIT_BANGOU) == 0)
             score -= 2;
-         else if (is_period(buff_string) == 1)
+         else if (is_decimal_point(end->next) == 1)
             score += 4;
       }
    }
@@ -1154,6 +1187,13 @@ static int is_written_digit_sequence(NJDNode *start, NJDNode *end)
       if (strstr("０１２３４５６７８９", NJDNode_get_string(node)) != NULL)
          return 0;
    }
+   /* 「三〇九,三〇八」の後ろの組は、「〇」を書いた桁読みの組に「,」で続くので、同じく桁読みの表記とみなす */
+   /* 前の組は桁読みとして品詞を一時的に変えているので、数字かどうかは表記で確かめる */
+   if (start->prev != NULL && is_comma(NJDNode_get_string(start->prev)) &&
+       is_kanji_digit_string(start->prev->prev)) {
+      for (node = start->prev->prev; is_kanji_digit_string(node->prev); node = node->prev);
+      return start != end && has_written_zero(node, start->prev->prev);
+   }
    return start != end &&
           (start->prev == NULL ||
            strcmp(NJDNode_get_pos_group1(start->prev), NJD_SET_DIGIT_KAZU) != 0);
@@ -1257,7 +1297,7 @@ static int long_number_digit_reading(NJDNode *start, NJDNode *end)
    if (node != NULL &&
        (strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
         strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_FUKUSHIKANOU) == 0 ||
-        is_period(NJDNode_get_string(node))))
+        is_decimal_point(node)))
       return 0;
    /* 「約1234567890123」は前の数接続の語で数量と分かるので、位取りで読む */
    if (get_digit_sequence_score(start, end) > 0)
@@ -1330,7 +1370,8 @@ static NJDNode *restore_grouped_number_commas(NJDNode *start, NJDNode *end, int 
    int group_size;
 
    /* 「1,050円」「1,234,567」は先頭が1〜3桁、カンマの後が3桁の数として既存の位取り処理へ渡す */
-   if (size > 3 || (start->prev != NULL && is_comma(NJDNode_get_string(start->prev))))
+   if (size > 3 || (start->prev != NULL && is_comma(NJDNode_get_string(start->prev))) ||
+       has_written_zero(start, end))
       return NULL;
    while (group_end->next != NULL && is_comma(NJDNode_get_string(group_end->next))) {
       node = group_end->next->next;
@@ -1439,12 +1480,13 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       has_quantity_suffix = next != NULL &&
          (strcmp(NJDNode_get_pos_group1(next), NJD_SET_DIGIT_KAZU) == 0 ||
           strcmp(NJDNode_get_pos_group2(next), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
-          is_period(NJDNode_get_string(next)) || is_comma(NJDNode_get_string(next)) ||
+          is_decimal_point(next) || is_digit_group_comma(next) ||
           (groups == 1 && phone_context && has_quantity_expression(node, next)));
       /* 「一〇・五」「電話料金は1.5円」「1,234円」は通常の小数・桁区切り処理に任せ、文脈と桁数で確認できる「電話番号03・1234・5678」「〒104・8011」だけを番号として読む */
+      /* 後ろに数字のない「一〇一.」「四〇五,電話」の「.」「,」と、「〇」を書いた「三〇九,三〇八」の「,」は句読点なので、番号の判定を続ける */
       if (end[0]->next != NULL &&
-          (is_period(NJDNode_get_string(end[0]->next)) ||
-           is_comma(NJDNode_get_string(end[0]->next))) &&
+          (is_decimal_point(end[0]->next) ||
+           (is_digit_group_comma(end[0]->next) && !has_written_zero(start[0], end[0]))) &&
           !(groups == 3 && phone_context && (total == 10 || total == 11) && !has_quantity_suffix) &&
           !(groups == 2 && postal_context && size[0] == 3 && size[1] == 4 && !has_quantity_suffix)) {
          node = end[0];
