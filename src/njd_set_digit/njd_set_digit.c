@@ -1197,6 +1197,38 @@ static void set_kaikyuu_counter_accents(NJD *njd)
       NJDNode_set_chain_rule(node->next, "F1");
    }
 }
+
+static void set_man_yen_accents(NJD *njd)
+{
+   NJDNode *node;
+   NJDNode *number;
+
+   /* 「万円」は、「万」の前が1桁の数か単独の「十」「百」「千」なら平板型にし (「ニマンエン」「ジューマンエン」「ヒャクマンエン」) */
+   /* 位の字に数が付く「二十万円」「何百万円」「一千万円」と、「数十万円」「十数万円」は「マ」の後で下げる (「ニジューマ＼ンエン」) */
+   /* 「十万」「千万」は辞書の1語で解析されることがあるので、前に数がある「十万」は位の字に数が付く形として扱う */
+   /* 「二十五万円」のように「五」から句を分けた数は、後ろの句を1桁の数と同じく平板型の「ゴマンエン」にする */
+   /* 11〜19の一の位は set_digit_accent_rules() の最後で「十」につなぎ直されるので、句の切れ目が決まったここで判定する */
+   for (node = njd->head; node != NULL && node->next != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_string(node->next), "円") != 0 ||
+          strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) != 0 ||
+          (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[3]) != 0 &&
+           strcmp(NJDNode_get_string(node), "十万") != 0 && strcmp(NJDNode_get_string(node), "千万") != 0))
+         continue;
+      /* 「万」の前の数を、「十万」「千万」は自分自身を、位の字に数が付く形かを見る起点にする */
+      /* 「二〇 万円」は「万」の前に無音の空白境界があり、後処理で前の数とつなぐので、境界を読み飛ばして空白のない形と同じく判定する */
+      number = node;
+      if (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[3]) == 0)
+         for (number = node->prev; number != NULL && strcmp(NJDNode_get_pos_group3(number), "空白境界") == 0;
+              number = number->prev);
+      if (number != NULL && number != node && strcmp(NJDNode_get_pos_group1(number), NJD_SET_DIGIT_KAZU) != 0)
+         continue;
+      if (number != NULL && number->prev != NULL && NJDNode_get_chain_flag(number) == 1 &&
+          strcmp(NJDNode_get_pos_group1(number->prev), NJD_SET_DIGIT_KAZU) == 0)
+         NJDNode_set_chain_rule(node->next, "F4@-1");
+      else
+         NJDNode_set_chain_rule(node->next, "F5");
+   }
+}
 #endif
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
@@ -3202,6 +3234,7 @@ void njd_set_digit(NJD * njd)
    set_digit_accent_rules(njd);
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
    set_kaikyuu_counter_accents(njd);
+   set_man_yen_accents(njd);
    set_day_word_suffix_accents(njd);
    finish_number_sequences(number_sequences);
    set_restored_month_accents(njd);
