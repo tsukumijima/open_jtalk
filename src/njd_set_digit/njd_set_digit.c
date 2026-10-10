@@ -2002,6 +2002,12 @@ void njd_set_digit(NJD * njd)
    }
 
    for (node = njd->head->next; node != NULL; node = node->next) {
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+      /* 「1.1本」の小数の桁は整数の「1本」と違って促音化・濁音化せず、「イッテンイチホン」と読む */
+      if (strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0 &&
+          is_decimal_digit(node->prev) == 1)
+         continue;
+#endif
       if (strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0) {
          if (strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) == 0
              || strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_FUKUSHIKANOU) == 0
