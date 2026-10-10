@@ -508,6 +508,61 @@ static void restore_counter_features(NJD *njd)
    }
 }
 
+static void mark_written_group_quantities(NJD *njd)
+{
+   NJDNode *node, *previous;
+   int combined, separate;
+   for (node = njd->head; node != NULL; node = node->next) {
+      combined = strcmp(NJDNode_get_string(node), "一組") == 0 &&
+                 strcmp(NJDNode_get_read(node), "イチクミ") == 0;
+      separate = strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0 &&
+                 (strcmp(NJDNode_get_string(node), "一") == 0 ||
+                  strcmp(NJDNode_get_string(node), "二") == 0) && node->next != NULL &&
+                 strcmp(NJDNode_get_string(node->next), "組") == 0 &&
+                 strcmp(NJDNode_get_read(node->next), "クミ") == 0;
+      if ((!combined && !separate) || strcmp(NJDNode_get_pos_group3(node), "読み保護") == 0 ||
+          (separate && strcmp(NJDNode_get_pos_group3(node->next), "読み保護") == 0))
+         continue;
+      previous = node->prev;
+      /* 算用数字が漢数字へ変わる前に数量だけを記録し、複合数詞・小数・序数・学年直後の組番号を除く */
+      if (previous != NULL &&
+          (strcmp(NJDNode_get_pos_group1(previous), NJD_SET_DIGIT_KAZU) == 0 ||
+           strcmp(NJDNode_get_string(previous), "第") == 0 ||
+           strcmp(NJDNode_get_string(previous), "．") == 0 ||
+           strcmp(NJDNode_get_string(previous), "・") == 0 ||
+           (strcmp(NJDNode_get_string(previous), "年") == 0 && previous->prev != NULL &&
+            strcmp(NJDNode_get_pos_group1(previous->prev), NJD_SET_DIGIT_KAZU) == 0) ||
+           strcmp(NJDNode_get_string(previous), "一年") == 0))
+         continue;
+      if (combined) {
+         NJDNode_set_read(node, "ヒトクミ");
+         NJDNode_set_pron(node, "ヒトクミ");
+         NJDNode_set_mora_size(node, 4);
+         NJDNode_set_acc(node, 2);
+      } else
+         NJDNode_set_pos_group3(node, "数量組");
+   }
+}
+
+static void set_written_group_readings(NJD *njd)
+{
+   NJDNode *node;
+   const char *reading;
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_pos_group3(node), "数量組") != 0)
+         continue;
+      reading = strcmp(NJDNode_get_string(node), "一") == 0 ? "ヒト" : "フタ";
+      NJDNode_set_read(node, reading);
+      NJDNode_set_pron(node, reading);
+      NJDNode_set_mora_size(node, 2);
+      NJDNode_set_acc(node, 2);
+      NJDNode_set_pos_group3(node, "*");
+      /* 「二」の1モーラが「フタ」の2モーラになるので、組の C3 に渡す数詞末尾の核も2へ動かす */
+      if (node->next != NULL)
+         NJDNode_set_chain_rule(node->next, "C3");
+   }
+}
+
 static void set_restored_month_accents(NJD *njd)
 {
    NJDNode *node;
@@ -2762,6 +2817,7 @@ void njd_set_digit(NJD * njd)
    normalize_old_place_characters(njd);
    set_vertical_decimal_points(njd);
    set_written_place_chain_rules(njd);
+   mark_written_group_quantities(njd);
    /* 「3 本」の「ホン」を助数詞へ戻してから、「サンボン」の濁音化とアクセント結合を適用する */
    restore_counter_features(njd);
    number_sequences = prepare_number_sequences(njd);
@@ -3316,6 +3372,7 @@ void njd_set_digit(NJD * njd)
    set_identifier_numerical_accents(njd);
    set_flight_number_accent(njd);
    set_railway_series_accent(njd);
+   set_written_group_readings(njd);
 #endif
 }
 
