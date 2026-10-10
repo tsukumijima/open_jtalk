@@ -2546,6 +2546,14 @@ static void set_approximate_counter_accents(NJD *njd)
          NJDNode_set_acc(node->prev, 1);
          continue;
       }
+      /* 漢数字の「二、三日」は「三日」が1語になるので、算用数字の「2、3日」と同じく「三日」の「サ」の後で下げて「ニサ＼ンニチ」と読む */
+      if (is_approximate_number_comma(node) && get_digit(node->prev, 0) == 2 && node->next != NULL &&
+          NJDNode_get_chain_flag(node->next) == 1 && day_word_digit(node->next) == 3) {
+         NJDNode_set_chain_flag(node, 1);
+         NJDNode_set_acc(node->next, 1);
+         NJDNode_set_chain_rule(node->next, "C1");
+         continue;
+      }
       if (!is_approximate_number_comma(node) || node->next == NULL || node->next->next == NULL ||
           NJDNode_get_chain_flag(node->next) != 1 || NJDNode_get_chain_flag(node->next->next) != 1)
          continue;
