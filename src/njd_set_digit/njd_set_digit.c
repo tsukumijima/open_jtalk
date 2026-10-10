@@ -2109,25 +2109,50 @@ static const char *njd_set_digit_rule_vertical_decimal_units[] = {
    NULL
 };
 
+static int is_kanji_digit_or_small_place_string(NJDNode *node)
+{
+   const char *str;
+   if (node == NULL)
+      return 0;
+   if (is_kanji_digit_string(node))
+      return 1;
+   str = NJDNode_get_string(node);
+   return strcmp(str, "十") == 0 || strcmp(str, "百") == 0 || strcmp(str, "千") == 0;
+}
+
+static int is_vertical_decimal_unit(NJDNode *node)
+{
+   const char *str = NJDNode_get_string(node);
+   int i;
+   /* 「平方メートル」「立方メートル」のように「平方」「立方」を前に付けた単位も、後ろの単位で判定する */
+   if (strncmp(str, "平方", strlen("平方")) == 0 || strncmp(str, "立方", strlen("立方")) == 0)
+      str += strlen("平方");
+   for (i = 0; njd_set_digit_rule_vertical_decimal_units[i] != NULL; i++)
+      if (strcmp(str, njd_set_digit_rule_vertical_decimal_units[i]) == 0)
+         return 1;
+   return 0;
+}
+
 static void set_vertical_decimal_points(NJD *njd)
 {
    NJDNode *node, *digit, *first, *last;
-   int has_zero, has_unit, has_counter, i;
+   int has_zero, has_unit, has_counter;
    /* 漢数字の間の中黒は、ふつうは「一・二年生」「三・四月」「三〇・四〇代」のように数を並べる区切りだが、縦書きでは小数点にも使う */
    /* 小数点として読むのは、次のどれかで小数と分かるときだけにする */
    /* (a) 前の数が「〇・五」「〇・〇三」のように「〇」で始まる */
-   /* (b) 後ろの数の直後に「三・五％」「一・五倍」のように量の単位が続く */
+   /* (b) 後ろの数の直後に「三・五％」「一・五倍」「百五十二・二平方メートル」のように量の単位が続くか、「三・五万トン」のように「万」「億」「兆」が続く */
+   /*     前の数は「二十・五％」のように「十」「百」「千」で終わってもよい */
    /* (c) 前の数が「一〇・五」のように「〇」を書く桁読みの表記で、後ろの数が「〇」で終わらず、後ろに助数詞も続かない */
    /* 「二〇・三〇年代」「一〇・二〇人」は後ろの数が「〇」で終わるので、並びのまま読む */
    for (node = njd->head; node != NULL; node = node->next) {
-      if (strcmp(NJDNode_get_string(node), "・") != 0 || !is_kanji_digit_string(node->prev) ||
+      if (strcmp(NJDNode_get_string(node), "・") != 0 || !is_kanji_digit_or_small_place_string(node->prev) ||
           !is_kanji_digit_string(node->next))
          continue;
       has_zero = 0;
       for (first = node->prev; ; first = first->prev) {
          if (strcmp(NJDNode_get_string(first), "〇") == 0)
             has_zero = 1;
-         if (!is_kanji_digit_string(first->prev))
+         if (!is_kanji_digit_or_small_place_string(first->prev))
             break;
       }
       for (last = node->next; is_kanji_digit_string(last->next); last = last->next);
@@ -2135,9 +2160,8 @@ static void set_vertical_decimal_points(NJD *njd)
       has_counter = 0;
       digit = last->next;
       if (digit != NULL) {
-         for (i = 0; njd_set_digit_rule_vertical_decimal_units[i] != NULL; i++)
-            if (strcmp(NJDNode_get_string(digit), njd_set_digit_rule_vertical_decimal_units[i]) == 0)
-               has_unit = 1;
+         has_unit = is_vertical_decimal_unit(digit) || strcmp(NJDNode_get_string(digit), "万") == 0 ||
+                    strcmp(NJDNode_get_string(digit), "億") == 0 || strcmp(NJDNode_get_string(digit), "兆") == 0;
          has_counter = strcmp(NJDNode_get_pos_group2(digit), NJD_SET_DIGIT_JOSUUSHI) == 0;
       }
       if (strcmp(NJDNode_get_string(first), "〇") == 0 || has_unit ||
