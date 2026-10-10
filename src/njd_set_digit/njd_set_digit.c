@@ -2038,6 +2038,67 @@ static void set_number_list_separator_phrases(NJD *njd)
 }
 #endif
 
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+static int is_kango_after_one(NJDNode *node)
+{
+   /* 「一」と分けて解析されても「一」を促音にする漢語は、1字の接尾辞 (「一審」「一国」「一書」「1死」「1速」「1庁」) と次の語に限る */
+   /* 「一単位」「一企業」「第一世代」のような2字以上の語や、「一皮」「一冬」のような和語の1字の名詞は、「イチ」と読むことが多い */
+   /* 「1中のグラフ」「一小」のように、学校名と図表の番号のどちらにもなる「中」「小」も「イチ」のまま読む */
+   static const char *words[] = {"譜", "党", "佐", "体性", "生涯", "戸建", "回転", "小節", "食分", "車線", "科目",
+                                 "課長", NULL};
+   const char *str = NJDNode_get_string(node);
+   int i;
+   for (i = 0; words[i] != NULL; i++)
+      if (strcmp(str, words[i]) == 0)
+         return 1;
+   return strlen(str) == 3 && strcmp(NJDNode_get_pos_group1(node), "接尾") == 0 &&
+          strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) != 0 &&
+          strcmp(str, "中") != 0 && strcmp(str, "小") != 0;
+}
+
+static void geminate_one_before_kango(NJD *njd)
+{
+   static const char *voiceless_heads[] = {"カ", "キ", "ク", "ケ", "コ", "サ", "シ", "ス", "セ", "ソ", "タ", "チ",
+                                           "ツ", "テ", "ト", NULL};
+   static const char *h_heads[][2] = {
+      {"ハ", "パ"}, {"ヒ", "ピ"}, {"フ", "プ"}, {"ヘ", "ペ"}, {"ホ", "ポ"}, {NULL, NULL}
+   };
+   NJDNode *node, *next;
+   const char *pron;
+   char buff[MAXBUFLEN];
+   int i;
+   /* MeCab が「一」と後ろの漢語を分けた「一審」「一国」「1死」「第1譜」では、「イッシン」「イッコク」「ダイイップ」と促音にする */
+   for (node = njd->head; node != NULL && node->next != NULL; node = node->next) {
+      next = node->next;
+      if (strcmp(NJDNode_get_string(node), "一") != 0 ||
+          strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) != 0 ||
+          strcmp(NJDNode_get_pron(node), "イチ") != 0 || !is_kango_after_one(next))
+         continue;
+      /* 「二十一」のような数の末尾や「0.1」のような小数の桁、「2‐1‐1」のような図表の番号の「一」は対象にしない */
+      if (node->prev != NULL &&
+          (strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0 || is_number_hyphen(node->prev)))
+         continue;
+      if (is_decimal_digit(node))
+         continue;
+      pron = NJDNode_get_pron(next);
+      for (i = 0; voiceless_heads[i] != NULL; i++)
+         if (strncmp(pron, voiceless_heads[i], strlen(voiceless_heads[i])) == 0)
+            break;
+      if (voiceless_heads[i] == NULL) {
+         for (i = 0; h_heads[i][0] != NULL; i++)
+            if (strncmp(pron, h_heads[i][0], strlen(h_heads[i][0])) == 0)
+               break;
+         if (h_heads[i][0] == NULL)
+            continue;
+         /* 「第1譜」の「フ」のように、ハ行は促音の後で半濁音にする */
+         snprintf(buff, sizeof(buff), "%s%s", h_heads[i][1], pron + strlen(h_heads[i][0]));
+         NJDNode_set_pron(next, buff);
+      }
+      NJDNode_set_pron(node, "イッ");
+   }
+}
+#endif
+
 void njd_set_digit(NJD * njd)
 {
    int i, j;
@@ -2497,6 +2558,7 @@ void njd_set_digit(NJD * njd)
    }
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+   geminate_one_before_kango(njd);
    set_number_list_separator_phrases(njd);
 #endif
    NJD_remove_silent_node(njd);
