@@ -785,6 +785,18 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
    }
 }
 
+static int is_sokuon_odaka_counter(NJDNode *counter)
+{
+   static const char *counters[] = {
+      "発", "匹", "冊", "室", "隻", "拍", "泊", "客", "脚", "曲", "局", "尺", "色", "食", "節", "滴", NULL
+   };
+   int i;
+   for (i = 0; counters[i] != NULL; i++)
+      if (strcmp(NJDNode_get_string(counter), counters[i]) == 0)
+         return 1;
+   return 0;
+}
+
 static void set_digit_accent_rules(NJD * njd)
 {
    NJDNode *node;
@@ -867,6 +879,22 @@ static void set_digit_accent_rules(NJD * njd)
       if (strcmp(NJDNode_get_string(counter), "回") == 0 &&
           (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[2]) == 0 ||
            (is_compound && strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0)))
+         NJDNode_set_chain_rule(counter, "F4@-1");
+      /* 「発」「匹」「冊」などは、促音で終わる数詞 (「イッ」「ロッ」「ハッ」「ジュッ」「ヒャッ」) に続くときだけ尾高型にする (「イッパツ＼」「ロッピキ＼」) */
+      /* ほかの数詞では前部末型のまま「サ＼ンパツ」と読み、同じ促音でも「頭」「点」「個」などは尾高型にしない */
+      /* 「二十冊」などの十の倍数は「ニジュ＼ッサツ」と「ジュ」の直後で下がるので、尾高型にしない */
+      if (is_sokuon_odaka_counter(counter) &&
+          !(is_compound && strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0) &&
+          strlen(NJDNode_get_pron(node)) >= 3 &&
+          strcmp(NJDNode_get_pron(node) + strlen(NJDNode_get_pron(node)) - 3, "ッ") == 0) {
+         char rule[8];
+         snprintf(rule, sizeof(rule), "F4@%d", NJDNode_get_mora_size(counter));
+         NJDNode_set_chain_rule(counter, rule);
+      }
+      /* 「二十点」「二十戦」などの10の倍数も、「ニジュ＼ッテン」「ニジュ＼ッセン」と助数詞より前にアクセント核を置く */
+      if ((strcmp(NJDNode_get_string(counter), "点") == 0 ||
+           strcmp(NJDNode_get_string(counter), "戦") == 0) &&
+          is_compound && strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0)
          NJDNode_set_chain_rule(counter, "F4@-1");
 
       /* 「日目」は尾高型、「人前」は平板型にし、別のノードに分かれた「目」「前」まで1つのアクセント句にまとめる */
