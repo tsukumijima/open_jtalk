@@ -2061,6 +2061,116 @@ static void mark_number_list_separators(NJD *njd)
    }
 }
 
+static int is_touten(NJDNode *node)
+{
+   return node != NULL &&
+          (strcmp(NJDNode_get_string(node), "、") == 0 || strcmp(NJDNode_get_string(node), "，") == 0);
+}
+
+static int is_approximate_number_comma(NJDNode *node)
+{
+   return is_touten(node) && strcmp(NJDNode_get_pos_group3(node), "数の区切り") == 0;
+}
+
+static int day_word_digit(NJDNode *node)
+{
+   static const char *days[] = {"二日", "三日", "四日", "五日", "六日", "七日", "八日", "九日",
+                                "２日", "３日", "４日", "５日", "６日", "７日", "８日", "９日", NULL};
+   int i;
+   /* MeCab が「三日」「５日」を1語にした語の数を返す */
+   for (i = 0; days[i] != NULL; i++)
+      if (strcmp(NJDNode_get_string(node), days[i]) == 0)
+         return i % 8 + 2;
+   return -1;
+}
+
+static int approximate_tail_digit(NJDNode *node)
+{
+   /* 後ろの数は、1桁の数に助数詞が続く形 (「5人」) か、辞書の1語の「三日」「５日」に限る */
+   if (strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0)
+      return node->next != NULL && strcmp(NJDNode_get_pos_group1(node->next), NJD_SET_DIGIT_KAZU) != 0 &&
+             is_counter_after_digits(node->next) ? get_digit(node, 0) : -1;
+   return day_word_digit(node);
+}
+
+static void mark_approximate_number_commas(NJD *njd)
+{
+   NJDNode *node, *first;
+   int x;
+   /* 「4、5日」「二、三人」「15、6年前」のように、読点で隣り合う1桁の数を並べて助数詞を続けた概数は、休止を置かずに読む */
+   /* 印は中黒の区切りと同じ「数の区切り」を使い、njd2jpcommon が読点の発音を空にする */
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (!is_touten(node) || node->prev == NULL || node->next == NULL ||
+          strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0)
+         continue;
+      x = get_digit(node->prev, 0);
+      if (x < 1 || x > 8 || approximate_tail_digit(node->next) != x + 1)
+         continue;
+      for (first = node->prev; first->prev != NULL &&
+           strcmp(NJDNode_get_pos_group1(first->prev), NJD_SET_DIGIT_KAZU) == 0; first = first->prev);
+      /* 「5月4、5日」は日付を並べたもの、「1、2、3日」は3つ以上の数の並びなので、概数にしない */
+      if (first->prev != NULL &&
+          (strstr(NJDNode_get_string(first->prev), NJD_SET_DIGIT_GATSU) != NULL ||
+           (is_touten(first->prev) && first->prev->prev != NULL &&
+            strcmp(NJDNode_get_pos_group1(first->prev->prev), NJD_SET_DIGIT_KAZU) == 0)))
+         continue;
+      NJDNode_set_pos_group3(node, "数の区切り");
+   }
+}
+
+static void set_approximate_number_readings(NJD *njd)
+{
+   static const char *digit_prons[] = {"ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"};
+   static const char *digit_mora_prons[] = {"ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュー"};
+   NJDNode *node, *first;
+   NJDNode day;
+   char buff[MAXBUFLEN];
+   int i, y;
+   for (node = njd->head; node != NULL; node = node->next) {
+      if (is_approximate_number_comma(node)) {
+         /* 概数の前の「4」は「シ」と読み (「シゴニチ」「シゴニン」)、後ろの数と1つのアクセント句にする */
+         if (get_digit(node->prev, 0) == 4) {
+            NJDNode_set_pron(node->prev, "シ");
+            NJDNode_set_mora_size(node->prev, 1);
+         }
+         /* 1語の「三日」(「ミッカ」) は日付の読みなので、概数の日数の「サンニチ」に直す */
+         y = day_word_digit(node->next);
+         if (y > 0) {
+            snprintf(buff, sizeof(buff), "%sニチ", digit_prons[y - 2]);
+            NJDNode_set_read(node->next, buff);
+            snprintf(buff, sizeof(buff), "%sニチ", digit_mora_prons[y - 2]);
+            NJDNode_set_pron(node->next, buff);
+            NJDNode_set_mora_size(node->next, (int) strlen(buff) / 3);
+            NJDNode_set_acc(node->next, 0);
+         }
+         NJDNode_set_chain_flag(node->next, 1);
+         continue;
+      }
+      /* 「5月4、5日」の前の日も、後ろの「5日」(「イツカ」) と同じく日付の読み (「ヨッカ」) にする */
+      if (!is_touten(node) || node->prev == NULL || node->next == NULL ||
+          strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) != 0)
+         continue;
+      if (day_word_digit(node->next) < 0 &&
+          (node->next->next == NULL || strcmp(NJDNode_get_string(node->next->next), NJD_SET_DIGIT_NICHI) != 0))
+         continue;
+      first = node->prev;
+      if (first->prev == NULL || strstr(NJDNode_get_string(first->prev), NJD_SET_DIGIT_GATSU) == NULL)
+         continue;
+      for (i = 0; njd_set_digit_rule_conv_table5[i] != NULL; i += 2) {
+         if (strcmp(NJDNode_get_string(first), njd_set_digit_rule_conv_table5[i]) == 0) {
+            NJDNode_initialize(&day);
+            NJDNode_load(&day, njd_set_digit_rule_conv_table5[i + 1]);
+            NJDNode_set_read(first, NJDNode_get_read(&day));
+            NJDNode_set_pron(first, NJDNode_get_pron(&day));
+            NJDNode_set_acc(first, NJDNode_get_acc(&day));
+            NJDNode_set_mora_size(first, NJDNode_get_mora_size(&day));
+            NJDNode_clear(&day);
+            break;
+         }
+      }
+   }
+}
+
 static void set_number_list_separator_phrases(NJD *njd)
 {
    NJDNode *node;
@@ -2175,6 +2285,7 @@ void njd_set_digit(NJD * njd)
    restore_counter_features(njd);
    number_sequences = prepare_number_sequences(njd);
    mark_number_list_separators(njd);
+   mark_approximate_number_commas(njd);
    /* 「070」のように全桁を番号として保護した文でも、通常の数詞処理の後で品詞を戻す */
    if (number_sequences != NULL)
       find = 1;
@@ -2577,6 +2688,9 @@ void njd_set_digit(NJD * njd)
             /* 「第2日」「第3日目」は何日目かを表す順番なので、「フツカ」「ミッカ」でなく「ダイニニチ」「ダイサンニチメ」と読む */
             if (node->prev != NULL && strcmp(NJDNode_get_string(node->prev), "第") == 0) {
             } else
+            /* 「4、5日」「二、三日」の概数の「日」は日付でなく日数なので、「イツカ」「ミッカ」でなく「ニチ」と読む */
+            if (is_approximate_number_comma(node->prev)) {
+            } else
 #endif
             if (node->prev != NULL
                 && strstr(NJDNode_get_string(node->prev), NJD_SET_DIGIT_GATSU) != NULL
@@ -2658,6 +2772,7 @@ void njd_set_digit(NJD * njd)
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
    set_fraction_readings_of_fun_words(njd);
    geminate_one_before_kango(njd);
+   set_approximate_number_readings(njd);
    set_number_list_separator_phrases(njd);
 #endif
    NJD_remove_silent_node(njd);
