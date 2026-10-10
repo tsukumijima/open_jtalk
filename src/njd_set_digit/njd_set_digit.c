@@ -856,7 +856,7 @@ static int is_news_date_context(NJDNode *following)
    return 0;
 }
 
-static int is_day_count_context(NJDNode *digit)
+static int is_day_count_context(NJDNode *digit, NJDNode *following)
 {
    static const char *prefixes[] = {"第", "丸", "まる", "毎", "各", "約", "ほぼ", "たった", "わずか", NULL};
    static const char *day_words[] = {"今日", "きょう", "本日", "明日", "あした", "あす", "昨日", "きのう", NULL};
@@ -864,11 +864,14 @@ static int is_day_count_context(NJDNode *digit)
    int i;
    /* 「大会第1日、」の序数や、「丸1日、」「約1日、」の期間を表す語の後の「1日」は、読点が続いても日数の「イチニチ」と読む */
    /* 「今日も1日、」「今日1日、」のように、日を指す語の後で「その日のあいだ」を表す「1日」も日数として読む */
+   /* 日を指す語の後でも、「本日1日付で」「明日1日午前10時に」のように「付」や時間帯の語が続くときは日付なので、読点が続くときだけにする */
    if (node == NULL)
       return 0;
    for (i = 0; prefixes[i] != NULL; i++)
       if (strcmp(NJDNode_get_string(node), prefixes[i]) == 0)
          return 1;
+   if (strcmp(NJDNode_get_string(following), "、") != 0 && strcmp(NJDNode_get_string(following), "，") != 0)
+      return 0;
    if (strcmp(NJDNode_get_string(node), "も") == 0 && node->prev != NULL)
       node = node->prev;
    for (i = 0; day_words[i] != NULL; i++)
@@ -2401,7 +2404,7 @@ static void set_news_date_first_day(NJD *njd)
           strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) != 0 ||
           (node->prev != NULL && strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0) ||
           strcmp(NJDNode_get_string(node->next), NJD_SET_DIGIT_NICHI) != 0 ||
-          !is_news_date_context(node->next->next) || is_day_count_context(node))
+          !is_news_date_context(node->next->next) || is_day_count_context(node, node->next->next))
          continue;
       following = node->next->next;
       /* 「一日付で」は「1日付で」と違って日数の「イチニチ」とも読めるので、漢数字は午前・午後のような時間帯の語だけを見る */
