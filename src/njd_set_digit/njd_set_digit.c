@@ -812,6 +812,35 @@ static int is_sokuon_odaka_counter(NJDNode *counter)
    return 0;
 }
 
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+static int is_counter_after_digits(NJDNode *node)
+{
+   return node != NULL && (strcmp(NJDNode_get_pos_group2(node), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
+                           search_numerative_class(njd_set_digit_rule_counter_words, node));
+}
+
+static const char *ratio_or_fraction_reading_of_fun(NJDNode *fun)
+{
+   NJDNode *node;
+   /* 「3割2分」「5分5厘」の「分」は割合の単位なので「ブ」と読む */
+   for (node = fun->prev; node != NULL && strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0;
+        node = node->prev);
+   if (node != NULL && strcmp(NJDNode_get_string(node), "割") == 0)
+      return "ブ";
+   for (node = fun->next; node != NULL && strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0;
+        node = node->next);
+   if (node == fun->next)
+      return NULL;
+   if (node != NULL && strcmp(NJDNode_get_string(node), "厘") == 0)
+      return "ブ";
+   /* 「千分一」「四分三」のように「の」を省いて書いた分数は「ブン」と読む */
+   /* 「3分5秒」のように後ろの数に助数詞が続くときは時間の「フン」のままにする */
+   if (is_counter_after_digits(node))
+      return NULL;
+   return "ブン";
+}
+#endif
+
 static void set_digit_accent_rules(NJD * njd)
 {
    NJDNode *node;
@@ -2046,6 +2075,31 @@ static void set_number_list_separator_phrases(NJD *njd)
 #endif
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+static void set_fraction_readings_of_fun_words(NJD *njd)
+{
+   static const char *words[][2] = {{"三分", "サンブン"}, {"四分", "ヨンブン"}, {NULL, NULL}};
+   NJDNode *node, *next;
+   int i;
+   /* 時間量の1語の「三分」「四分」(「サンプン」「ヨンプン」) に「の」を挟まずに数が続く「四分三」は、分数として「ヨンブンサン」と読む */
+   for (node = njd->head; node != NULL && node->next != NULL; node = node->next) {
+      if (strcmp(NJDNode_get_pos_group1(node->next), NJD_SET_DIGIT_KAZU) != 0 ||
+          (node->prev != NULL && strcmp(NJDNode_get_pos_group1(node->prev), NJD_SET_DIGIT_KAZU) == 0))
+         continue;
+      for (next = node->next; next != NULL && strcmp(NJDNode_get_pos_group1(next), NJD_SET_DIGIT_KAZU) == 0;
+           next = next->next);
+      /* 「三分5秒」のように後ろの数に助数詞が続くときは時間量のまま読む */
+      if (is_counter_after_digits(next))
+         continue;
+      for (i = 0; words[i][0] != NULL; i++) {
+         if (strcmp(NJDNode_get_string(node), words[i][0]) == 0) {
+            NJDNode_set_read(node, words[i][1]);
+            NJDNode_set_pron(node, words[i][1]);
+            break;
+         }
+      }
+   }
+}
+
 static int is_kango_after_one(NJDNode *node)
 {
    /* 「一」と分けて解析されても「一」を促音にする漢語は、1字の接尾辞 (「一審」「一国」「一書」「1死」「1速」「1庁」) と次の語に限る */
@@ -2232,6 +2286,16 @@ void njd_set_digit(NJD * njd)
                NJDNode_set_mora_size(node, 1);
             }
             /* convert digit pron */
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+            if (strcmp(NJDNode_get_string(node), "分") == 0 && ratio_or_fraction_reading_of_fun(node) != NULL) {
+               /* 割合の「ブ」と、「の」を省いた分数の「ブン」は、数詞を促音化しない (「サンワリニブ」「センブンイチ」) */
+               const char *fun_reading = ratio_or_fraction_reading_of_fun(node);
+               NJDNode_set_read(node, fun_reading);
+               NJDNode_set_pron(node, fun_reading);
+               NJDNode_set_mora_size(node, strcmp(fun_reading, "ブ") == 0 ? 1 : 2);
+            }
+            else
+#endif
             if (strcmp(NJDNode_get_string(node), "分") == 0 &&
                 strcmp(NJDNode_get_read(node), "ブン") == 0) {
                /* 分数の分母の「ブン」の前では、時間量の「ヒャップン」「ロップン」のように数詞を促音化しない (「ヒャクブンノイチ」) */
@@ -2592,6 +2656,7 @@ void njd_set_digit(NJD * njd)
    }
 
 #if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+   set_fraction_readings_of_fun_words(njd);
    geminate_one_before_kango(njd);
    set_number_list_separator_phrases(njd);
 #endif
