@@ -2122,6 +2122,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
                  groups < number_groups - 1 && separator != start[groups + 1]; separator = separator->next) {
                if (is_number_hyphen(separator) || strcmp(NJDNode_get_string(separator), "・") == 0) {
                   NJDNode_set_pron(separator, "、");
+                  NJDNode_set_acc(separator, 0);
                   NJDNode_set_mora_size(separator, 0);
                   NJDNode_set_chain_flag(separator, 0);
                }
@@ -2180,6 +2181,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
                   NJDNode_set_chain_flag(separator, 1);
                } else {
                   NJDNode_set_pron(separator, "、");
+                  NJDNode_set_acc(separator, 0);
                   NJDNode_set_mora_size(separator, 0);
                   NJDNode_set_chain_flag(separator, 0);
                }

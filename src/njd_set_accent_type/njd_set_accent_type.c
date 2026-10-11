@@ -176,6 +176,10 @@ void njd_set_accent_type(NJD * njd)
 
       // NOTE: アクセント句の境界に到達したのでリセットする。
       if ((node == njd->head) || (NJDNode_get_chain_flag(node) != 1)) {
+         /* 2桁ずつ読む数が助数詞や小数点で分かれ、3モーラ目の核が前の2モーラの句に残った場合は平板型にする */
+         if (top_node != NULL && strcmp(NJDNode_get_pos_group1(top_node), NJD_SET_ACCENT_TYPE_KAZU) == 0 &&
+             NJDNode_get_acc(top_node) > mora_size)
+            NJDNode_set_acc(top_node, 0);
          /* store the top node */
          top_node = node;
          mora_size = 0;
@@ -315,6 +319,10 @@ void njd_set_accent_type(NJD * njd)
       // NOTE: アクセント句の先頭からこのノードまでの合計モーラ数を更新する。
       mora_size += NJDNode_get_mora_size(node);
    }
+   /* 最後の数詞の句も、句の範囲外に残った核を平板型にする */
+   if (top_node != NULL && strcmp(NJDNode_get_pos_group1(top_node), NJD_SET_ACCENT_TYPE_KAZU) == 0 &&
+       NJDNode_get_acc(top_node) > mora_size)
+      NJDNode_set_acc(top_node, 0);
 }
 
 NJD_SET_ACCENT_TYPE_C_END;
