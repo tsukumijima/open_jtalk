@@ -1514,7 +1514,7 @@ static int has_phone_context(NJDNode *start, NJDNode *end)
    }
    /* 「市外局番213の、486ー2435」「電話 03 1234 5678」は区切りと数字をたどり、電話番号の最後の組まで文脈を保つ */
    for (node = start->prev; node != NULL && distance < 16; node = node->prev, distance++) {
-      /* 「電話は100ある」「FAXは100届いた」のような3桁以下の数は数量として位取りで読む */
+      /* 「電話は100ある」「FAXは100届いた」の短い数量は位取りで読み、「☎110」「TEL117」は特番として桁読みを保つ */
       /* 「電話は03の1234の5678」のように後ろに番号の組が続くときは、最初の組が3桁以下でも電話番号として読む */
       if ((strcmp(NJDNode_get_string(node), "電話") == 0 ||
            strcmp(NJDNode_get_string(node), "ファクス") == 0 ||
@@ -1526,7 +1526,8 @@ static int has_phone_context(NJDNode *start, NJDNode *end)
            strcmp(NJDNode_get_string(node), "Ｔｅｌ") == 0 ||
            (strcmp(NJDNode_get_pos(node), "記号") == 0 && strstr(NJDNode_get_string(node), "☎") != NULL)) &&
           number_size(start, end) <= 3 &&
-          next_phone_group(end, 1, 0) == NULL)
+          next_phone_group(end, 1, 0) == NULL &&
+          (!is_special_phone_number(start, end) || has_quantity_expression(start, end->next)))
          break;
       if (strcmp(NJDNode_get_string(node), "電話") == 0 ||
           strcmp(NJDNode_get_string(node), "電話番号") == 0 ||
@@ -2001,7 +2002,7 @@ static int has_quantity_expression(NJDNode *start, NJDNode *node)
        strcmp(str, "近く") == 0 || strcmp(str, "ほど") == 0 ||
        strcmp(str, "くらい") == 0 || strcmp(str, "ぐらい") == 0)
       return 1;
-   /* 「100に増えた」「100増えた」「100と比べた」は直後の述語の原形で数量と判定し、発信先の「119に電話する」と区別する */
+   /* 「100に増えた」「110届いた」は直後の述語の原形で数量と判定し、発信先の「119に電話する」と区別する */
    if (strcmp(NJDNode_get_pos(node), "助詞") == 0) {
       node = node->next;
       while (node != NULL && strcmp(NJDNode_get_pos_group3(node), "空白境界") == 0)
@@ -2021,7 +2022,8 @@ static int has_quantity_expression(NJDNode *start, NJDNode *node)
    }
    if (strcmp(NJDNode_get_pos(node), "動詞") != 0)
       return 0;
-   return strcmp(orig, "増える") == 0 || strcmp(orig, "増す") == 0 ||
+   return strcmp(orig, "ある") == 0 || strcmp(orig, "届く") == 0 ||
+          strcmp(orig, "増える") == 0 || strcmp(orig, "増す") == 0 ||
           strcmp(orig, "増やす") == 0 ||
           strcmp(orig, "減る") == 0 || strcmp(orig, "減らす") == 0 ||
           strcmp(orig, "比べる") == 0 || strcmp(orig, "超える") == 0 ||
@@ -2080,12 +2082,16 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       while (next != NULL && strcmp(NJDNode_get_pos_group3(next), "空白境界") == 0 &&
              number_digit(next->next) < 0)
          next = next->next;
-      /* 「電話は100以上」は数量として位取りで読み、3組に区切った「電話番号は0120-123-456から」は発信元の番号として桁読みを保つ */
+      /* 「電話は100以上」「電話は100・200と増えた」は数量として位取りで読む */
+      /* 2組でも先頭が0で全10〜11桁の「0120・123456まで」は電話番号なので、「まで」「から」による数量判定から外す */
       has_quantity_suffix = next != NULL &&
          (strcmp(NJDNode_get_pos_group1(next), NJD_SET_DIGIT_KAZU) == 0 ||
           strcmp(NJDNode_get_pos_group2(next), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
           is_decimal_point(next) || is_digit_group_comma(next) ||
-          (groups <= 2 && phone_context && has_quantity_expression(node, next)));
+          (groups <= 2 && phone_context &&
+           !(groups == 2 && number_digit(node) == 0 && size[0] == 4 &&
+             (total == 10 || total == 11) && !has_identifier_context(node)) &&
+           has_quantity_expression(node, next)));
       /* 「一〇・五」「電話料金は1.5円」「1,234円」は通常の小数・桁区切り処理に任せ、文脈と桁数で確認できる「電話番号03・1234・5678」「〒104・8011」だけを番号として読む */
       /* 後ろに数字のない「一〇一.」「四〇五,電話」の「.」「,」と、「〇」を書いた「三〇九,三〇八」の「,」は句読点なので、番号の判定を続ける */
       if (end[0]->next != NULL &&
