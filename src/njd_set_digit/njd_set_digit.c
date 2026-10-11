@@ -2085,7 +2085,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
          (strcmp(NJDNode_get_pos_group1(next), NJD_SET_DIGIT_KAZU) == 0 ||
           strcmp(NJDNode_get_pos_group2(next), NJD_SET_DIGIT_JOSUUSHI) == 0 ||
           is_decimal_point(next) || is_digit_group_comma(next) ||
-          (groups == 1 && phone_context && has_quantity_expression(node, next)));
+          (groups <= 2 && phone_context && has_quantity_expression(node, next)));
       /* 「一〇・五」「電話料金は1.5円」「1,234円」は通常の小数・桁区切り処理に任せ、文脈と桁数で確認できる「電話番号03・1234・5678」「〒104・8011」だけを番号として読む */
       /* 後ろに数字のない「一〇一.」「四〇五,電話」の「.」「,」と、「〇」を書いた「三〇九,三〇八」の「,」は句読点なので、番号の判定を続ける */
       if (end[0]->next != NULL &&
