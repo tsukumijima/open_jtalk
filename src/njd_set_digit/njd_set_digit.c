@@ -1523,7 +1523,14 @@ static int has_phone_context(NJDNode *start, NJDNode *end)
           strcmp(NJDNode_get_string(node), "電話番号") == 0 ||
           strcmp(NJDNode_get_string(node), "ファクス") == 0 ||
           strcmp(NJDNode_get_string(node), "市外局番") == 0 ||
-          strcmp(NJDNode_get_string(node), "局番") == 0)
+          strcmp(NJDNode_get_string(node), "局番") == 0 ||
+          (strcmp(NJDNode_get_pos(node), "記号") == 0 && strstr(NJDNode_get_string(node), "☎") != NULL) ||
+          strcmp(NJDNode_get_string(node), "ＴＥＬ") == 0 ||
+          strcmp(NJDNode_get_string(node), "ｔｅｌ") == 0 ||
+          strcmp(NJDNode_get_string(node), "Ｔｅｌ") == 0 ||
+          strcmp(NJDNode_get_string(node), "ＦＡＸ") == 0 ||
+          strcmp(NJDNode_get_string(node), "ｆａｘ") == 0 ||
+          strcmp(NJDNode_get_string(node), "Ｆａｘ") == 0)
          return 1;
       /* 「受け付け電話番号は、03・3355・1881」のように「電話」「番号」が別々に解析されても、隣り合う語を番号の見出しとして扱う */
       if (strcmp(NJDNode_get_string(node), "番号") == 0 && node->prev != NULL &&
@@ -2016,8 +2023,8 @@ static int has_quantity_expression(NJDNode *start, NJDNode *node)
 static NJDNumberSequence *prepare_number_sequences(NJD *njd)
 {
    NJDNumberSequence *sequences = NULL;
-   NJDNode *node, *start[3], *end[3], *next, *separator;
-   int size[3], groups, total, phone_context, postal_context, first_group, has_quantity_suffix;
+   NJDNode *node, *start[3], *end[3], *next, *separator, *phone_start;
+   int size[3], groups, number_groups, total, phone_context, postal_context, first_group, has_quantity_suffix, prefix_size;
 
    for (node = njd->head; node != NULL; node = node->next) {
       if (number_digit(node) < 0 || is_decimal_digit(node))
@@ -2034,11 +2041,29 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       postal_context = has_postal_context(node);
       total = size[0];
       groups = 1;
-      while (groups < 3 && (next = next_phone_group(end[groups - 1], phone_context, postal_context)) != NULL) {
+      /* 「0744・49・0001」は見出しがなくても電話番号の組になり得るので、先頭が0なら中黒の後ろの桁数も調べる */
+      while (groups < 3 && (next = next_phone_group(end[groups - 1], phone_context || number_digit(node) == 0 ||
+                              (node->next != NULL && strcmp(NJDNode_get_string(node->next), "０") == 0), postal_context)) != NULL) {
          start[groups] = next;
          end[groups] = number_end(next, &size[groups]);
          total += size[groups];
          groups++;
+      }
+      /* 「窓口二十一０１２０・12・3456」のように漢数字の語尾と番号が隣り合っても、先頭の全角0から電話番号を数える */
+      /* 漢数字だけの接頭部分は通常の数詞処理へ残し、算用数字の数量や桁数の合わない列挙は分けない */
+      phone_start = node;
+      prefix_size = 0;
+      while (phone_start != end[0] && strlen(NJDNode_get_string(phone_start)) == 3 &&
+             strstr("一二三四五六七八九", NJDNode_get_string(phone_start)) != NULL) {
+         phone_start = phone_start->next;
+         prefix_size++;
+      }
+      if (groups == 3 && prefix_size > 0 && strcmp(NJDNode_get_string(phone_start), "０") == 0 &&
+          (total - prefix_size == 10 || total - prefix_size == 11) &&
+          size[0] - prefix_size >= 2 && size[0] - prefix_size <= 5 && size[2] >= 2 && size[2] <= 4) {
+         node = start[0] = phone_start;
+         size[0] -= prefix_size;
+         total -= prefix_size;
       }
       /* 「123-4567.89円」「〒印を1234567枚印刷する」は、小数点や助数詞が続く数量として通常の数詞処理へ渡す */
       next = end[groups - 1]->next;
@@ -2064,14 +2089,22 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
       }
 
       /* 「03-1234-5678」「212-836-1725」は合計10〜11桁、「市外局番213の486ー2435」は文脈で電話と判定する */
-      if (groups == 3 && !has_quantity_suffix &&
-          (((total == 10 || total == 11) && !has_identifier_context(node)) || phone_context)) {
-         for (groups = 0; groups < 3; groups++) {
+      /* 中黒は数の列挙にも使うため、見出しがなければ先頭0と電話番号の桁数を確認する */
+      /* 「0120・123456」の2組や「0120・123・456」の3組も、全10桁の電話番号として桁読みする */
+      if (groups >= 2 && !has_quantity_suffix &&
+          (((total == 10 || total == 11) && !has_identifier_context(node) &&
+            ((groups == 3 && strcmp(NJDNode_get_string(end[0]->next), "・") != 0 &&
+              strcmp(NJDNode_get_string(end[1]->next), "・") != 0) ||
+             (number_digit(node) == 0 && size[0] >= 2 && size[0] <= 5 &&
+              ((groups == 2 && size[0] == 4) ||
+               (groups == 3 && size[2] >= 2 && size[2] <= 4))))) || phone_context)) {
+         number_groups = groups;
+         for (groups = 0; groups < number_groups; groups++) {
             if (protect_number_sequence(&sequences, start[groups], end[groups]))
                set_phone_digit_reading(start[groups], end[groups], 0);
             /* 「070ー3224」の長音記号を休止へ変え、「の」はそのまま発音する */
             for (separator = end[groups]->next;
-                 groups < 2 && separator != start[groups + 1]; separator = separator->next) {
+                 groups < number_groups - 1 && separator != start[groups + 1]; separator = separator->next) {
                if (is_number_hyphen(separator) || strcmp(NJDNode_get_string(separator), "・") == 0) {
                   NJDNode_set_pron(separator, "、");
                   NJDNode_set_mora_size(separator, 0);
@@ -2079,7 +2112,7 @@ static NJDNumberSequence *prepare_number_sequences(NJD *njd)
                }
             }
          }
-         node = end[2];
+         node = end[number_groups - 1];
          continue;
       }
 
