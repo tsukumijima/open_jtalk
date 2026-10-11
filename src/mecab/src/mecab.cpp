@@ -51,6 +51,7 @@
 #include <string.h>
 
 #include <iostream>
+#include <algorithm>
 #include <vector>
 
 #include "mecab.h"
@@ -321,6 +322,26 @@ BOOL Mecab_parse_lattice_with_numeral_boundaries(void *tagger, void *lattice, co
    if (mecab_tagger->parse(mecab_lattice) == false)
       return FALSE;
    Mecab_collect_numeral_boundaries(mecab_lattice, &boundaries);
+   if (boundaries.empty())
+      return TRUE;
+
+   /* 最良経路で選ばれたユーザー辞書の語の中には境界を入れない
+      「三三−〇一」を1語で登録した読みは、読み保護の有無にかかわらず再解析後も同じ辞書の語として残す */
+   std::sort(boundaries.begin(), boundaries.end());
+   const MeCab::Node *node = mecab_lattice->bos_node();
+   size_t kept = 0;
+   for (i = 0; i < boundaries.size(); i++) {
+      while (node != NULL &&
+             (node->stat == MECAB_BOS_NODE ||
+              static_cast<size_t>(node->surface - mecab_lattice->sentence() + node->length) <= boundaries[i]))
+         node = node->next;
+      if (node != NULL && node->dictionary_index != 0 &&
+          node->dictionary_index != MECAB_NO_DICTIONARY_INDEX &&
+          static_cast<size_t>(node->surface - mecab_lattice->sentence()) < boundaries[i])
+         continue;
+      boundaries[kept++] = boundaries[i];
+   }
+   boundaries.resize(kept);
    if (boundaries.empty())
       return TRUE;
 
