@@ -564,7 +564,7 @@ static void restore_counter_features(NJD *njd)
           strcmp(NJDNode_get_string(node->next), "の") == 0 && node->next->next != NULL &&
           strcmp(NJDNode_get_pos_group1(node->next->next), NJD_SET_DIGIT_KAZU) == 0)
          continue;
-      /* 「1 月」「1 月に会う」「2008 年 05 月 05 日」は日付として「ガツ」に戻し、「1 月ほど待った」「一 月が過ぎた」は解析済みの「ツキ」を保つ */
+      /* 「1 月」「1 月に会う」「2008 年 05 月 05 日」「二−四月の」は暦月として「ガツ」に戻し、「1 月ほど待った」「一 月が過ぎた」は解析済みの「ツキ」を保つ */
       if (strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_GATSU) == 0) {
          if (calendar_month_number(node) == 0)
             continue;
@@ -575,7 +575,13 @@ static void restore_counter_features(NJD *njd)
              (start->prev == NULL || strcmp(NJDNode_get_string(start->prev), "年") != 0) &&
              (next == NULL || strcmp(NJDNode_get_string(next), "日") != 0) &&
              !(strcmp(NJDNode_get_pos_group1(node->next), "格助詞") == 0 &&
-               strcmp(NJDNode_get_string(node->next), "に") == 0))
+               strcmp(NJDNode_get_string(node->next), "に") == 0) &&
+             !(start->prev != NULL && start->prev->prev != NULL &&
+               strcmp(NJDNode_get_pos_group1(start->prev->prev), NJD_SET_DIGIT_KAZU) == 0 &&
+               (strcmp(NJDNode_get_string(start->prev), "−") == 0 ||
+                strcmp(NJDNode_get_string(start->prev), "〜") == 0 ||
+                strcmp(NJDNode_get_string(start->prev), "～") == 0) &&
+               strcmp(NJDNode_get_string(node->next), "の") == 0))
             continue;
       }
       for (i = 0; njd_set_digit_rule_counter_features[i][0] != NULL; i++) {
