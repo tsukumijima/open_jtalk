@@ -325,20 +325,26 @@ BOOL Mecab_parse_lattice_with_numeral_boundaries(void *tagger, void *lattice, co
    if (boundaries.empty())
       return TRUE;
 
-   /* 最良経路で選ばれたユーザー辞書の語の中には境界を入れない
-      「三三−〇一」を1語で登録した読みは、読み保護の有無にかかわらず再解析後も同じ辞書の語として残す */
+   /* 最良経路で選ばれたユーザー辞書の語が数の並びを収めていれば、語の中には境界を入れない
+      「三三−〇一」を1語で登録した読みは、読み保護の有無にかかわらず再解析後も同じ辞書の語として残す
+      「四十」+「二人」のように数の途中から始まる登録語は、数全体を読み直せるように分割する */
    std::sort(boundaries.begin(), boundaries.end());
    const MeCab::Node *node = mecab_lattice->bos_node();
-   size_t kept = 0;
+   size_t kept = 0, begin;
    for (i = 0; i < boundaries.size(); i++) {
       while (node != NULL &&
              (node->stat == MECAB_BOS_NODE ||
               static_cast<size_t>(node->surface - mecab_lattice->sentence() + node->length) <= boundaries[i]))
          node = node->next;
       if (node != NULL && node->dictionary_index != 0 &&
-          node->dictionary_index != MECAB_NO_DICTIONARY_INDEX &&
-          static_cast<size_t>(node->surface - mecab_lattice->sentence()) < boundaries[i])
-         continue;
+          node->dictionary_index != MECAB_NO_DICTIONARY_INDEX) {
+         begin = node->surface - mecab_lattice->sentence();
+         if (begin < boundaries[i] &&
+             !(begin >= 3 &&
+               Mecab_starts_with_kanji_numeral(str, mecab_lattice->size(), begin - 3, false) &&
+               Mecab_starts_with_kanji_numeral(str, mecab_lattice->size(), begin, false)))
+            continue;
+      }
       boundaries[kept++] = boundaries[i];
    }
    boundaries.resize(kept);
