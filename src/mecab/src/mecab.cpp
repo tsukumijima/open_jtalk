@@ -248,6 +248,35 @@ static bool Mecab_is_kanji_numeral_word(const char *str, size_t size, const MeCa
    return true;
 }
 
+/* 数の途中にある登録語でも、先頭の漢数字を数詞として読む語はそのまま残す
+   「三重塔」の「サンジューノトー」や「十回転」の「ジュッカイテン」を分割すると、後半の読みが失われる
+   「二人」の「フタリ」、「一駅」の「ヒトエキ」、「十日夜」の「トーカヤ」は数詞の読みで始まらないので再解析する */
+static bool Mecab_has_numeral_pronunciation_prefix(const MeCab::Node *node)
+{
+   static const char *prefixes[][2] = {
+      {"一", "イチ"}, {"一", "イッ"}, {"二", "ニ"}, {"三", "サン"},
+      {"四", "ヨン"}, {"四", "シ"}, {"五", "ゴ"}, {"六", "ロク"}, {"六", "ロッ"},
+      {"七", "ナナ"}, {"七", "シチ"}, {"八", "ハチ"}, {"八", "ハッ"},
+      {"九", "キュー"}, {"九", "ク"}, {"十", "ジュー"}, {"十", "ジュッ"}
+   };
+   const char *pronunciation = node->feature;
+   size_t i;
+   if (pronunciation == NULL)
+      return false;
+   for (i = 0; i < 8; i++) {
+      pronunciation = strchr(pronunciation, ',');
+      if (pronunciation == NULL)
+         return false;
+      pronunciation++;
+   }
+   for (i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); i++)
+      if (node->length >= strlen(prefixes[i][0]) &&
+          memcmp(node->surface, prefixes[i][0], strlen(prefixes[i][0])) == 0 &&
+          strncmp(pronunciation, prefixes[i][1], strlen(prefixes[i][1])) == 0)
+         return true;
+   return false;
+}
+
 /* 漢数字の並びを、算用数字と同じく1字ずつの形態素に分ける必要がある並びを探し、各字の境目の位置を返す
    1. 「二十三」を「二」+「十三」、「二十八時間」を「二」+「十」+「八時間」のように、数詞の後で並びの途中から始まる語を選んだ並び
       「十三」「八時間」「十六日」は辞書の語なので、数の一部として読むと区切りが崩れ、位取りとアクセントが算用数字と食い違う
@@ -342,7 +371,9 @@ BOOL Mecab_parse_lattice_with_numeral_boundaries(void *tagger, void *lattice, co
          if (begin < boundaries[i] &&
              !(begin >= 3 &&
                Mecab_starts_with_kanji_numeral(str, mecab_lattice->size(), begin - 3, false) &&
-               Mecab_starts_with_kanji_numeral(str, mecab_lattice->size(), begin, false)))
+               Mecab_starts_with_kanji_numeral(str, mecab_lattice->size(), begin, false) &&
+               (Mecab_is_kanji_numeral_word(str, mecab_lattice->size(), node) ||
+                !Mecab_has_numeral_pronunciation_prefix(node))))
             continue;
       }
       boundaries[kept++] = boundaries[i];
