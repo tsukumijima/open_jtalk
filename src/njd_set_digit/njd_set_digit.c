@@ -915,7 +915,9 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
          else if (identifier_numerical_reading(s, final_digit)) {
             numerical_reading = 1;
             /* 「COVID-19」「AB-12」の英字の語の後のハイフンは、休止を置かずに語と数を別のアクセント句で続けて読む (「コ＼ビッド」「ジューキュ＼ー」) */
-            if (s->prev != NULL && is_number_hyphen(s->prev) && is_latin_word(s->prev->prev))
+            /* 「Ａー七」の長音は英字の母音を延ばすので、漢数字の前では無音の型番区切りに変えない */
+            if (s->prev != NULL && is_number_hyphen(s->prev) && is_latin_word(s->prev->prev) &&
+                strcmp(NJDNode_get_string(s->prev), "ー") != 0)
                NJDNode_set_pos_group3(s->prev, "数の区切り");
          }
          /* 「5823901746283915」のように兆以上の位が要る長い数字列は、位取りが短い「1000000000000」を除いて桁読みにする */
@@ -2983,6 +2985,18 @@ void njd_set_digit(NJD * njd)
 
    /* convert digit sequence */
    for (node = njd->head; node != NULL; node = node->next) {
+#if defined(CHARSET_UTF_8) && !defined(ASCII_HEADER)
+      /* 数字の原表記が漢字へ変わる前に、「Iー20」の長音を型番の無音の区切りとして扱う */
+      /* 「Ａー七」の長音は母音を延ばすため、算用数字が続く場合だけを対象にする */
+      if (node->prev != NULL && strcmp(NJDNode_get_string(node->prev), "ー") == 0 &&
+          is_latin_word(node->prev->prev) && strlen(NJDNode_get_string(node)) == 3 &&
+          strstr("０１２３４５６７８９", NJDNode_get_string(node)) != NULL) {
+         int digit_size;
+         NJDNode *digit_end = number_end(node, &digit_size);
+         if (identifier_numerical_reading(node, digit_end))
+            NJDNode_set_pos_group3(node->prev, "数の区切り");
+      }
+#endif
       if (find == 0 && strcmp(NJDNode_get_pos_group1(node), NJD_SET_DIGIT_KAZU) == 0)
          find = 1;
       if (get_digit(node, 1) >= 0 ||
