@@ -123,6 +123,14 @@ text2mecab_result_t text2mecab(char *output, size_t sizeOfOutput, const char *in
             output[index++] = str[j];
       } else if (text2mecab_control_range[0] <= str[0] && str[0] <= text2mecab_control_range[1]) {
          /* control character */
+         if (str[0] == '\n' || str[0] == '\r' || str[0] == '\t') {
+            if (index + strlen("　") >= sizeOfOutput) {
+               output[0] = '\0';
+               return TEXT2MECAB_RESULT_RANGE_ERROR;
+            }
+            for (j = 0; "　"[j] != '\0'; j++)
+               output[index++] = "　"[j];
+         }
          s++;
       } else {
          /* multi byte character */
