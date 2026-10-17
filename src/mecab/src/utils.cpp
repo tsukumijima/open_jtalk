@@ -44,6 +44,7 @@
 /* POSSIBILITY OF SUCH DAMAGE.                                       */
 /* ----------------------------------------------------------------- */
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -250,6 +251,9 @@ void enum_csv_dictionaries(const char *path,
   }
   closedir(dir);
 #endif
+  // OS が返す順は Windows では名前の順、Linux や macOS ではファイルシステムしだいなので、名前の順に並べ替える
+  // 表層・文脈 ID・コストが同じ行は先に読んだ CSV の行が選ばれるため、読む順が変わると OS ごとに辞書が変わってしまう
+  std::sort(dics->begin(), dics->end());
 }
 
 bool toLower(std::string *s) {
