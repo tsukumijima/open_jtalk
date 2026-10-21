@@ -1150,12 +1150,13 @@ static void set_digit_accent_rules(NJD * njd)
              strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0))))
          NJDNode_set_chain_rule(counter, "F4@2");
 
-      /* 「一円」「十円」「百円」「千円」などと、「万」に短い助数詞が続く場合 (「一万個」など) は平板型にする */
+      /* 「一円」「十円」「百円」「二千円」「三千円」などと、「万」に短い助数詞が続く場合 (「一万個」など) は平板型にする */
+      /* 「千円」だけは頭高型の「セ＼ンエン」で読むので、前に数のない「千」に続く「円」は平板型にしない */
       if ((strcmp(NJDNode_get_string(counter), "円") == 0 &&
            ((!is_compound && (digit == 1 || digit == 2 || digit == 3 || digit == 6 || digit == 8 ||
                               strcmp(NJDNode_get_string(node), NJD_SET_DIGIT_TEN) == 0)) ||
             strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[1]) == 0 ||
-            strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[2]) == 0)) ||
+            (is_compound && strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[2]) == 0))) ||
           (strcmp(NJDNode_get_string(node), njd_set_digit_rule_numeral_list5[3]) == 0 &&
            NJDNode_get_mora_size(counter) <= 2 &&
            strcmp(NJDNode_get_string(counter), "ウォン") != 0 &&
