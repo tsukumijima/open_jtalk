@@ -157,7 +157,8 @@ text2mecab_result_t text2mecab(char *output, size_t sizeOfOutput, const char *in
                break;
             }
          }
-         if (e > 0) {
+         /* 入力の末尾で途切れた多バイト文字は、文字列の終端より後ろを読まないよう不正な文字として読み飛ばす */
+         if (e > 0 && length - s >= e) {
             if (index + e >= sizeOfOutput) {
                output[0] = '\0';
                return TEXT2MECAB_RESULT_RANGE_ERROR;
